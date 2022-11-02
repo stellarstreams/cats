@@ -70,10 +70,13 @@ class PhotometricSurvey(abc.ABC):
         ebv = dustmaps_cls().query(c)
 
         tbl = at.Table()
+        new_band_names = []
         for band, short_name in self.band_names.items():
             Ax = self.extinction_coeffs[short_name] * ebv
             tbl[f'A_{short_name}'] = Ax
             tbl[f'{short_name}0'] = self.data[band] - Ax
+            new_band_names.append(f'{short_name}0')
+        tbl.meta['band_names'] = new_band_names
 
         return tbl
 
@@ -140,12 +143,15 @@ class GaiaDR3Phot(PhotometricSurvey):
         As = {'G': As[0], 'BP': As[1], 'RP': As[2]}  # NOTE: assumption!
 
         tbl = at.Table()
+        new_band_names = []
         for band, short_name in self.band_names.items():
             Ax = As[short_name]
             if hasattr(Ax, 'value'):
                 Ax = Ax.value
             tbl[f'A_{short_name}'] = Ax
             tbl[f'{short_name}0'] = self.data[band] - Ax
+            new_band_names.append(f'{short_name}0')
+        tbl.meta['band_names'] = new_band_names
 
         return tbl
 
@@ -179,9 +185,12 @@ class DESY6Phot(PhotometricSurvey):
         ebv = dustmaps_cls().query(c)
 
         tbl = at.Table()
+        new_band_names = []
         for short_name in self.band_names.values():
             Ax = self.extinction_coeffs[short_name] * ebv
             tbl[f'A_{short_name}'] = Ax
             tbl[f'{short_name}0'] = self.data[f'BDF_MAG_{short_name.upper()}_CORRECTED']
+            new_band_names.append(f'{short_name}0')
+        tbl.meta['band_names'] = new_band_names
 
         return tbl
