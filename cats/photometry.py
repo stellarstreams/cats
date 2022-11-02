@@ -77,6 +77,7 @@ class PhotometricSurvey(abc.ABC):
             tbl[f'{short_name}0'] = self.data[band] - Ax
             new_band_names.append(f'{short_name}0')
         tbl.meta['band_names'] = new_band_names
+        tbl.meta['dustmap'] = dustmaps_cls.__class__.__name__
 
         return tbl
 
@@ -152,6 +153,7 @@ class GaiaDR3Phot(PhotometricSurvey):
             tbl[f'{short_name}0'] = self.data[band] - Ax
             new_band_names.append(f'{short_name}0')
         tbl.meta['band_names'] = new_band_names
+        tbl.meta['dustmap'] = dustmaps_cls.__class__.__name__
 
         return tbl
 
@@ -192,5 +194,6 @@ class DESY6Phot(PhotometricSurvey):
             tbl[f'{short_name}0'] = self.data[f'BDF_MAG_{short_name.upper()}_CORRECTED']
             new_band_names.append(f'{short_name}0')
         tbl.meta['band_names'] = new_band_names
+        tbl.meta['dustmap'] = dustmaps_cls.__class__.__name__
 
         return tbl
