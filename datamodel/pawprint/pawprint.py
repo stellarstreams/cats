@@ -2,6 +2,8 @@ import galstreams as gst
 from matplotlib.path import Path as mpl_path
 from astropy.coordinates import CoordFrame #shorthand
 from astropy.table import Table
+import asdf
+
 
 #use ecsv for polygon specification?
 #asdf packages these together 
@@ -32,7 +34,7 @@ class Footprint2D(dict):
 
     @classmethod
     def from_file(cls,fname):
-        with Table.read(fname, format='ascii.ecsv') as t:
+        with Table.read(fname) as t:
             vertices = t['vertices']
             footprint_type = t['footprint_type']
         return cls(vertices,footprint_type)
@@ -56,7 +58,7 @@ class pawprintClass(dict):
 
         '''
 
-    def __init__(self, stream_name, pawprint_ID, from_galstreams=True):
+    def __init__(self, stream_name, pawprint_ID, **kwargs):
         
         #we need a way to specify and load the vertices for the footprints. 
         #How do we want to do it? 
@@ -65,6 +67,8 @@ class pawprintClass(dict):
 
         self.stream_name = stream_name
         self.pawprint_ID = pawprint_ID
+
+        
         self.stream_frame = CoordFrame(self,input_data_specifier?)
 
                 #right now loading tracks via galstreams, later include updates to track
@@ -97,5 +101,23 @@ class pawprintClass(dict):
 
     
     def save_pawprint(self):
-        '''TODO: save as YAML (Eduardo)'''
+        fname = stream_name+pawprint_ID+'.asdf'
+        tree = {
+            'stream_name':stream_name,
+            'pawprint_ID':pawprint_ID,
+            'stream_frame':stream_frame,
+            'cmd_filters': cmd_filters,
+            'width':width,
+            'on_stream':{
+                        'sky':skyprint['stream'],
+                        'cmd':cmdprint,
+                        'pm':pmprint
+                        },
+            'off_stream':skyprint['background'],
+            'track':track
+        }
+        out = asdf.AsdfFile(tree)
+        out.write_to(fname)
+
+
 
