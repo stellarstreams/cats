@@ -7,7 +7,7 @@ from dustmaps.sfd import SFDQuery
 import numpy as np
 from pyia import GaiaData
 
-__all__ = ['PS1', 'GaiaDR3', 'DESY6']
+__all__ = ['PS1Phot', 'GaiaDR3Phot', 'DESY6Phot']
 
 
 class PhotometricSurvey(abc.ABC):
@@ -30,8 +30,6 @@ class PhotometricSurvey(abc.ABC):
                     "You must specify extinction coefficients for all photometric "
                     "bands in any survey-specific subclass"
                 )
-
-        # TODO: make copies of dicts
 
     def __init__(self, data) -> None:
         """
@@ -80,7 +78,7 @@ class PhotometricSurvey(abc.ABC):
         return tbl
 
 
-class PS1(PhotometricSurvey):
+class PS1Phot(PhotometricSurvey):
     band_names = {
         "gMeanPSFMag": 'g',
         "rMeanPSFMag": 'r',
@@ -117,7 +115,7 @@ class PS1(PhotometricSurvey):
         return d_mag_mask
 
 
-class GaiaDR3(PhotometricSurvey):
+class GaiaDR3Phot(PhotometricSurvey):
     band_names = {
         'phot_g_mean_mag': 'G',
         'phot_bp_mean_mag': 'BP',
@@ -152,7 +150,7 @@ class GaiaDR3(PhotometricSurvey):
         return tbl
 
 
-class DESY6(PhotometricSurvey):
+class DESY6Phot(PhotometricSurvey):
     band_names = {
         'WAVG_MAG_PSF_G': 'g',
         'WAVG_MAG_PSF_R': 'r',
