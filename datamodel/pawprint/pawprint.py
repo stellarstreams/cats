@@ -1,6 +1,6 @@
 import galstreams as gst
 from matplotlib.path import Path as mpl_path
-from astropy.table import Table
+import astropy.table as apt
 import asdf
 import astropy.units as u
 from astropy.coordinates import SkyCoord
