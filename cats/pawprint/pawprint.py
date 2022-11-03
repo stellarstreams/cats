@@ -69,7 +69,7 @@ class Footprint2D(dict):
 
 
 
-class pawprintClass(dict):
+class Pawprint(dict):
     '''Dictionary class to store a "pawprint": 
         polygons in multiple observational spaces that define the initial selection 
         used for stream track modeling, 

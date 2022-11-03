@@ -65,13 +65,14 @@ def get_abundances():
 	'''queries ancillary data tables for spectroscopy, probably given some options that perhaps user can set'''
 
 
-class starClass(dict):
+class Star(dict):
 	def __init__(self, streamID):
 		#starclass 
-		self.data = starDataClass(streamID)
+		self.data = StarData(streamID)
+		self.derived = StarDerived(streamID)
 
 
-class starDataClass(dict):
+class StarData(dict):
 	'''dictionary class to store __measured__ attributes for one star in the catalog'''
     def __init__(self, streamID): 
     	
@@ -116,8 +117,9 @@ class starDataClass(dict):
 	    	get_gaia_photometry(self) #load gaia photometry in from catalog
     		get_abundances(self) #load abundances from detailed spectroscopoc tables
 
-class starDerivedClass(dict):
-	stuff
+class StarDerived(dict):
+	'''class to store derived attributes'''
+	...
 
 
 
@@ -128,6 +130,6 @@ def _inside_poly(data, vertices):
 def makeMask(self, pawprint, what):
         '''take in some data and return masks for stuff in the pawprint (basically by successively applying _inside_poly)'''
         #returns mask with same dimension as data
-
+        ...
 
 
