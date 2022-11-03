@@ -36,6 +36,8 @@ class Footprint2D(dict):
     @classmethod
     def from_vertices(cls, vertex_coordinates, footprint_type):
         return cls(vertices,footprint_type)
+    def get_vertices_from_box(self,min1, max1, min2, max2):
+        return [[min1,min2],[min1,max2],[max1,min2],[max1,max2]]
 
     @classmethod
     def from_box(cls, min1, max1, min2, max2, footprint_type):
@@ -48,9 +50,6 @@ class Footprint2D(dict):
             vertices = t['vertices']
             footprint_type = t['footprint_type']
         return cls(vertices,footprint_type)
-
-    def get_vertices_from_box(self,min1, max1, min2, max2):
-        return [[min1,min2],[min1,max2],[max1,min2],[max1,max2]]
 
     def inside_footprint(self,data):
         if isinstance(data, SkyCoord):
