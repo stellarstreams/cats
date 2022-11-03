@@ -71,27 +71,27 @@ class Footprint2D(dict):
 
 
 class Pawprint(dict):
-    '''Dictionary class to store a "pawprint": 
-        polygons in multiple observational spaces that define the initial selection 
-        used for stream track modeling, 
+    '''Dictionary class to store a "pawprint":
+        polygons in multiple observational spaces that define the initial selection
+        used for stream track modeling,
         membership calculation / density modeling, and background modeling.
-        
+
         New convention: everything is in phi1 phi2 (don't cross the streams)
 
         '''
 
-    
+
     def __init__(self, data):
 
         self.stream_name = data['stream_name']
         self.pawprint_ID = data['pawprint_ID']
         self.stream_frame = data['stream_frame']
         self.width = data['width']
-        self.skyprint = {'stream':Footprint2D(data['stream_vertices'],footprint_type='sky',stream_frame=self.stream_frame), 
-                        'background':Footprint2D(data['background_vertices'],footprint_type='sky',stream_frame=self.stream_frame)} 
+        self.skyprint = {'stream':Footprint2D(data['stream_vertices'],footprint_type='sky',stream_frame=self.stream_frame),
+                        'background':Footprint2D(data['background_vertices'],footprint_type='sky',stream_frame=self.stream_frame)}
         #WG3: how to implement distance dependence in isochrone selections?
         self.cmd_filters = data['cmd_filters']
-        
+
         if self.cmd_filters is not None:
             self.cmdprint = {}
             for k in data.cmd_filters.keys():
@@ -99,7 +99,7 @@ class Pawprint(dict):
         else: self.cmdprint = None
         if data['pm_vertices'] is not None:
             self.pmprint = Footprint2D(data['pm_vertices'],footprint_type='sky') #polygon(s) in proper-motion space mu_phi1, mu_phi2
-        else: 
+        else:
             self.pmprint = None
 
         self.track = data['track']
@@ -120,37 +120,37 @@ class Pawprint(dict):
             data['sky'] = {}
 
             if a['on_stream']['cmd'] is not None:
-                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'], 
+                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'],
                     a['on_stream']['cmd'][k])['footprint_type']) for k in a['on_stream']['cmd'].keys()])
-            
+
             if a['on_stream']['pm'] is not None:
-                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'], 
+                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'],
                     a['on_stream']['cmd'][k])['footprint_type']) for k in a['on_stream']['cmd'].keys()])
 
         return cls(data)
-        
 
-    
+
+
     @classmethod
     def pawprint_from_galstreams(cls,stream_name,pawprint_ID):
-        
-        
-        galstreams_tracks = '../../galstreams/galstreams/tracks/'
-    
+
+        galstreams_dir = os.path.dirname(gst.__file__)
+        galstreams_tracks = os.path.join(galstreams_dir, 'tracks/')
+
         def _make_track_file_name(stream_name,pawprint_ID):
             return galstreams_tracks+'track.st.'+stream_name+'.'+pawprint_ID+".ecsv"
-    
+
         def _make_summary_file_name(stream_name,pawprint_ID):
             return galstreams_tracks+'track.st.'+stream_name+'.'+pawprint_ID+".summary.ecsv"
-        
+
         def _get_stream_frame_from_file(summary_file):
             t = apt.QTable.read(summary_file)
-        
+
             x = dict()
             atts = [x.replace('mid.','') for x in t.keys() if 'mid' in x ]
             for att in atts:  #we're effectively looping over skycoords defined for mid here (ra, dec, ...)
                 x[att] = t[f'mid.{att}'][0]   #<- make sure to set it up as a scalar. if not, frame conversions get into trouble
-            mid_point = SkyCoord(**x) 
+            mid_point = SkyCoord(**x)
 
             x = dict()
             atts = [x.replace('pole.','') for x in t.keys() if 'pole' in x ]
