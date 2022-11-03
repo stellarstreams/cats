@@ -6,6 +6,7 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from gala.coordinates import GreatCircleICRSFrame
 import numpy as np
+import os
 
 
 #class densityClass: #TODO: how to represent densities?
@@ -27,7 +28,7 @@ class Footprint2D(dict):
         self.stream_frame = stream_frame
         self.footprint_type = footprint_type
         self.footprint = mpl_path(self.vertices)
-        
+
     @classmethod
     def from_vertices(cls, vertex_coordinates, footprint_type):
         return cls(vertices,footprint_type)
@@ -46,7 +47,7 @@ class Footprint2D(dict):
 
     def get_vertices_from_box(self,min1, max1, min2, max2):
         return [[min1,min2],[min1,max2],[max1,min2],[max1,max2]]
-    
+
     def inside_footprint(self,data):
         if isinstance(data, SkyCoord):
             if self.stream_frame is None:
@@ -70,27 +71,27 @@ class Footprint2D(dict):
 
 
 class pawprintClass(dict):
-    '''Dictionary class to store a "pawprint": 
-        polygons in multiple observational spaces that define the initial selection 
-        used for stream track modeling, 
+    '''Dictionary class to store a "pawprint":
+        polygons in multiple observational spaces that define the initial selection
+        used for stream track modeling,
         membership calculation / density modeling, and background modeling.
-        
+
         New convention: everything is in phi1 phi2 (don't cross the streams)
 
         '''
 
-    
+
     def __init__(self, data):
 
         self.stream_name = data['stream_name']
         self.pawprint_ID = data['pawprint_ID']
         self.stream_frame = data['stream_frame']
         self.width = data['width']
-        self.skyprint = {'stream':Footprint2D(data['stream_vertices'],footprint_type='sky',stream_frame=self.stream_frame), 
-                        'background':Footprint2D(data['background_vertices'],footprint_type='sky',stream_frame=self.stream_frame)} 
+        self.skyprint = {'stream':Footprint2D(data['stream_vertices'],footprint_type='sky',stream_frame=self.stream_frame),
+                        'background':Footprint2D(data['background_vertices'],footprint_type='sky',stream_frame=self.stream_frame)}
         #WG3: how to implement distance dependence in isochrone selections?
         self.cmd_filters = data['cmd_filters']
-        
+
         if self.cmd_filters is not None:
             self.cmdprint = {}
             for k in data.cmd_filters.keys():
@@ -98,7 +99,7 @@ class pawprintClass(dict):
         else: self.cmdprint = None
         if data['pm_vertices'] is not None:
             self.pmprint = Footprint2D(data['pm_vertices'],footprint_type='sky') #polygon(s) in proper-motion space mu_phi1, mu_phi2
-        else: 
+        else:
             self.pmprint = None
 
         self.track = data['track']
@@ -107,7 +108,7 @@ class pawprintClass(dict):
     def from_file(cls,fname):
         import asdf
         data = {}
-        with a = asdf.open('fname'):
+        with asdf.open('fname') as a:
             #first transfer the stuff that goes directly
             data['stream_name'] = a['stream_name']
             data['pawprint_ID'] = a['pawprint_ID']
@@ -119,37 +120,37 @@ class pawprintClass(dict):
             data['sky'] = {}
 
             if a['on_stream']['cmd'] is not None:
-                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'], 
+                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'],
                     a['on_stream']['cmd'][k])['footprint_type']) for k in a['on_stream']['cmd'].keys()])
-            
+
             if a['on_stream']['pm'] is not None:
-                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'], 
+                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'],
                     a['on_stream']['cmd'][k])['footprint_type']) for k in a['on_stream']['cmd'].keys()])
 
         return cls(data)
-        
 
-    
+
+
     @classmethod
     def pawprint_from_galstreams(cls,stream_name,pawprint_ID):
-        
-        
-        galstreams_tracks = '../../galstreams/galstreams/tracks/'
-    
+
+        galstreams_dir = os.path.dirname(gst.__file__)
+        galstreams_tracks = os.path.join(galstreams_dir, 'tracks/')
+
         def _make_track_file_name(stream_name,pawprint_ID):
             return galstreams_tracks+'track.st.'+stream_name+'.'+pawprint_ID+".ecsv"
-    
+
         def _make_summary_file_name(stream_name,pawprint_ID):
             return galstreams_tracks+'track.st.'+stream_name+'.'+pawprint_ID+".summary.ecsv"
-        
+
         def _get_stream_frame_from_file(summary_file):
             t = apt.QTable.read(summary_file)
-        
+
             x = dict()
             atts = [x.replace('mid.','') for x in t.keys() if 'mid' in x ]
             for att in atts:  #we're effectively looping over skycoords defined for mid here (ra, dec, ...)
                 x[att] = t[f'mid.{att}'][0]   #<- make sure to set it up as a scalar. if not, frame conversions get into trouble
-            mid_point = SkyCoord(**x) 
+            mid_point = SkyCoord(**x)
 
             x = dict()
             atts = [x.replace('pole.','') for x in t.keys() if 'pole' in x ]
@@ -165,8 +166,8 @@ class pawprintClass(dict):
         data['stream_name'] = stream_name
         data['pawprint_ID'] = pawprint_ID
 
-        track_file = _make_track_file_name(stream_name,pawprint_ID) 
-        summary_file = _make_summary_file_name(stream_name,pawprint_ID) 
+        track_file = _make_track_file_name(stream_name,pawprint_ID)
+        summary_file = _make_summary_file_name(stream_name,pawprint_ID)
         data['stream_frame'] = _get_stream_frame_from_file(summary_file)
 
         data['track'] = gst.Track6D(stream_name=data['stream_name'], track_name=data['pawprint_ID'], track_file=track_file, summary_file=summary_file)
@@ -210,16 +211,16 @@ class pawprintClass(dict):
             'off_stream':self.skyprint['background'].export(),
         #    'track':self.track   #TODO
         }
-        if self.cmdprint is not None: 
+        if self.cmdprint is not None:
             tree['on_stream']['cmd']=dict([(k,self.cmdprint[k].export()) for k in self.cmd_filters.keys()])
         else: tree['on_stream']['cmd']=None
-        
+
         if self.pmprint is not None:
             tree['on_stream']['pm']=dict([(k,self.pmprint[k].export()) for k in self.pmprint.keys()])
         else: tree['on_stream']['pm']=None
 
         out = asdf.AsdfFile(tree)
         out.write_to(fname)
-    
+
 
 
