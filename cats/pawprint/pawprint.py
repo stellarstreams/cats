@@ -107,7 +107,7 @@ class Pawprint(dict):
     def from_file(cls,fname):
         import asdf
         data = {}
-        with a = asdf.open('fname'):
+        with asdf.open('fname') as a:
             #first transfer the stuff that goes directly
             data['stream_name'] = a['stream_name']
             data['pawprint_ID'] = a['pawprint_ID']
