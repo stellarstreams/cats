@@ -18,6 +18,7 @@ class Footprint2D(dict):
                 vc = vertex_coordinates
             else:
                 if isinstance(vertex_coordinates, u.Quantity):
+                    #assume coordinates are in stream frame
                     vc = SkyCoord(vertex_coordinates,frame=stream_frame)
                 else:
                     #assume units are degrees and frame is phi1/phi2
@@ -92,7 +93,7 @@ class Pawprint(dict):
         self.width = data['width']
         self.skyprint = {'stream':Footprint2D(data['stream_vertices'],footprint_type='sky',stream_frame=self.stream_frame),
                         'background':Footprint2D(data['background_vertices'],footprint_type='sky',stream_frame=self.stream_frame)}
-        print(self.skyprint)
+        #print(self.skyprint)
         #WG3: how to implement distance dependence in isochrone selections?
         self.cmd_filters = data['cmd_filters']
 
@@ -238,7 +239,7 @@ class Pawprint(dict):
     def save_pawprint(self):
         #WARNING this doesn't save the track yet - need schema
         #WARNING the stream frame doesn't save right either
-        fname = self.stream_name+self.pawprint_ID+'.asdf'
+        fname = self.stream_name+'.'+self.pawprint_ID+'.asdf'
         tree = {
             'stream_name':self.stream_name,
             'pawprint_ID':self.pawprint_ID,
