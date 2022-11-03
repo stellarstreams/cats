@@ -11,7 +11,7 @@ import numpy as np
 #class densityClass: #TODO: how to represent densities?
 
 class Footprint2D(dict):
-    def __init__(self, vertex_coordinates, footprint_type, stream_frame=None):
+    def __init__(self, vertex_coordinates, footprint_type, stream_frame):
         if footprint_type=='sky':
             if isinstance(vertex_coordinates, SkyCoord):
                 vc = vertex_coordinates
@@ -25,6 +25,7 @@ class Footprint2D(dict):
             self.vertices = vertex_coordinates
 
         self.stream_frame = stream_frame
+        self.footprint_type = footprint_type
         self.footprint = mpl_path(self.vertices)
         
     @classmethod
@@ -43,7 +44,7 @@ class Footprint2D(dict):
             footprint_type = t['footprint_type']
         return cls(vertices,footprint_type)
 
-    def get_vertices_from_box(min1, max1, min2, max2):
+    def get_vertices_from_box(self,min1, max1, min2, max2):
         return [[min1,min2],[min1,max2],[max1,min2],[max1,max2]]
     
     def inside_footprint(self,data):
@@ -95,13 +96,17 @@ class pawprintClass(dict):
                         'background':Footprint2D(data['background_vertices'],footprint_type='sky',stream_frame=self.stream_frame)} 
         #WG3: how to implement distance dependence in isochrone selections?
         self.cmd_filters = data['cmd_filters']
-        self.cmdprint = {}
+        
         if self.cmd_filters is not None:
+            self.cmdprint = {}
             for k in data.cmd_filters.keys():
                 self.cmdprint[k] = Footprint2D(data['cmd_vertices'][k], footprint_type='cartesian')
+        else: self.cmdprint = None
         if data['pm_vertices'] is not None:
             self.pmprint = Footprint2D(data['pm_vertices'],footprint_type='sky') #polygon(s) in proper-motion space mu_phi1, mu_phi2
-        
+        else: 
+            self.pmprint = None
+
         self.track = data['track']
 
     @classmethod
@@ -179,21 +184,25 @@ class pawprintClass(dict):
 
 
     def save_pawprint(self):
-        fname = stream_name+pawprint_ID+'.asdf'
+        #WARNING this doesn't save the track yet - need schema
+        fname = self.stream_name+self.pawprint_ID+'.asdf'
         tree = {
-            'stream_name':stream_name,
-            'pawprint_ID':pawprint_ID,
-            'stream_frame':stream_frame,
-            'cmd_filters': cmd_filters,
-            'width':width,
-            'on_stream':{
-                        'sky':skyprint['stream'].export(),
-                        'cmd':cmdprint.export(),
-                        'pm':pmprint.export()
-                        },
-            'off_stream':skyprint['background'].export(),
-            'track':track
+            'stream_name':self.stream_name,
+            'pawprint_ID':self.pawprint_ID,
+            'stream_frame':self.stream_frame,  #needs a schema to save properly
+            'cmd_filters': self.cmd_filters,
+            'width':self.width,
+            'on_stream':{'sky':self.skyprint['stream'].export()},
+            'off_stream':self.skyprint['background'].export(),
+        #    'track':self.track
         }
+        if self.cmdprint is not None: 
+            tree['on_stream']['cmd']=self.cmdprint.export() 
+        
+        if self.pmprint is not None:
+            tree['on_stream']['pm']=self.pmprint.export() 
+        
+
         out = asdf.AsdfFile(tree)
         out.write_to(fname)
     
