@@ -11,7 +11,7 @@ import numpy as np
 #class densityClass: #TODO: how to represent densities?
 
 class Footprint2D(dict):
-    def __init__(self, vertex_coordinates, footprint_type, stream_frame):
+    def __init__(self, vertex_coordinates, footprint_type, stream_frame=None):
         if footprint_type=='sky':
             if isinstance(vertex_coordinates, SkyCoord):
                 vc = vertex_coordinates
@@ -69,7 +69,6 @@ class Footprint2D(dict):
 
 
 
-
 class pawprintClass(dict):
     '''Dictionary class to store a "pawprint": 
         polygons in multiple observational spaces that define the initial selection 
@@ -82,11 +81,6 @@ class pawprintClass(dict):
 
     
     def __init__(self, data):
-        
-        #we need a way to specify and load the vertices for the footprints. 
-        #How do we want to do it? 
-        #I sketched here passing the name of the stream 
-        #but we could also pass a list of vertices provided by WG2/3
 
         self.stream_name = data['stream_name']
         self.pawprint_ID = data['pawprint_ID']
@@ -110,9 +104,28 @@ class pawprintClass(dict):
         self.track = data['track']
 
     @classmethod
-    def load_pawprint(cls,fname):
-        #TODO: load all the stuff from the file into a dictionary called data and call the main init function
-        ...
+    def from_file(cls,fname):
+        import asdf
+        data = {}
+        with a = asdf.open('fname'):
+            #first transfer the stuff that goes directly
+            data['stream_name'] = a['stream_name']
+            data['pawprint_ID'] = a['pawprint_ID']
+            data['stream_frame'] = a['stream_frame']
+            data['width'] = a['width']
+            data['cmd_filters'] = a['cmd_filters']
+
+            #now create footprints from vertices
+            data['sky'] = {}
+
+            if a['on_stream']['cmd'] is not None:
+                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'], 
+                    a['on_stream']['cmd'][k])['footprint_type']) for k in a['on_stream']['cmd'].keys()])
+            
+            if a['on_stream']['pm'] is not None:
+                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'], 
+                    a['on_stream']['cmd'][k])['footprint_type']) for k in a['on_stream']['cmd'].keys()])
+
         return cls(data)
         
 
@@ -170,21 +183,22 @@ class pawprintClass(dict):
 
     def add_cmd_footprint(self, new_footprint, color, mag, name):
         if self.cmd_filters is None:
-            self.cmd_filters = {name:[color, mag]}
-            self.cmdprint = {name: new_footprint}
+            self.cmd_filters = dict((name,[color, mag]))
+            self.cmdprint = dict((name, new_footprint))
         else:
             self.cmd_filters[name] = [color,mag]
             self.cmdprint[name] = new_footprint
 
     def add_pm_footprint(self, new_footprint, name):
         if self.pmprint is None:
-            self.pmprint = {name: new_footprint}
+            self.pmprint = dict((name, new_footprint))
         else:
             self.pmprint[name] = new_footprint
 
 
     def save_pawprint(self):
         #WARNING this doesn't save the track yet - need schema
+        #WARNING the stream frame doesn't save right either
         fname = self.stream_name+self.pawprint_ID+'.asdf'
         tree = {
             'stream_name':self.stream_name,
@@ -194,14 +208,15 @@ class pawprintClass(dict):
             'width':self.width,
             'on_stream':{'sky':self.skyprint['stream'].export()},
             'off_stream':self.skyprint['background'].export(),
-        #    'track':self.track
+        #    'track':self.track   #TODO
         }
         if self.cmdprint is not None: 
-            tree['on_stream']['cmd']=self.cmdprint.export() 
+            tree['on_stream']['cmd']=dict([(k,self.cmdprint[k].export()) for k in self.cmd_filters.keys()])
+        else: tree['on_stream']['cmd']=None
         
         if self.pmprint is not None:
-            tree['on_stream']['pm']=self.pmprint.export() 
-        
+            tree['on_stream']['pm']=dict([(k,self.pmprint[k].export()) for k in self.pmprint.keys()])
+        else: tree['on_stream']['pm']=None
 
         out = asdf.AsdfFile(tree)
         out.write_to(fname)
