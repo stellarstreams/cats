@@ -17,7 +17,11 @@ class Footprint2D(dict):
             if isinstance(vertex_coordinates, SkyCoord):
                 vc = vertex_coordinates
             else:
-                vc = SkyCoord(vertex_coordinates)
+                if isinstance(vertex_coordinates, u.Quantity):
+                    vc = SkyCoord(vertex_coordinates,frame=stream_frame)
+                else:
+                    #assume units are degrees and frame is phi1/phi2
+                    vc = SkyCoord(vertex_coordinates*u.deg,frame=stream_frame)
             self.edges = vc
             self.vertices = np.array([vc.transform_to(stream_frame).phi1, vc.transform_to(stream_frame).phi2]).T
 
@@ -89,6 +93,7 @@ class Pawprint(dict):
         self.width = data['width']
         self.skyprint = {'stream':Footprint2D(data['stream_vertices'],footprint_type='sky',stream_frame=self.stream_frame),
                         'background':Footprint2D(data['background_vertices'],footprint_type='sky',stream_frame=self.stream_frame)}
+        print(self.skyprint)
         #WG3: how to implement distance dependence in isochrone selections?
         self.cmd_filters = data['cmd_filters']
 
@@ -98,7 +103,9 @@ class Pawprint(dict):
                 self.cmdprint[k] = Footprint2D(data['cmd_vertices'][k], footprint_type='cartesian')
         else: self.cmdprint = None
         if data['pm_vertices'] is not None:
-            self.pmprint = Footprint2D(data['pm_vertices'],footprint_type='sky') #polygon(s) in proper-motion space mu_phi1, mu_phi2
+            self.pmprint = {}
+            for k in data['pm_vertices'].keys():
+                self.pmprint[k] = Footprint2D(data['pm_vertices'][k],footprint_type='sky',stream_frame=self.stream_frame) #polygon(s) in proper-motion space mu_phi1, mu_phi2
         else:
             self.pmprint = None
 
@@ -106,9 +113,16 @@ class Pawprint(dict):
 
     @classmethod
     def from_file(cls,fname):
+        def _make_track_file_name(stream_name,pawprint_ID):
+            return galstreams_tracks+'track.st.'+stream_name+'.'+pawprint_ID+".ecsv"
+
+        def _make_summary_file_name(stream_name,pawprint_ID):
+            return galstreams_tracks+'track.st.'+stream_name+'.'+pawprint_ID+".summary.ecsv"
+
         import asdf
+
         data = {}
-        with asdf.open('fname') as a:
+        with asdf.open(fname,copy_arrays=True) as a:
             #first transfer the stuff that goes directly
             data['stream_name'] = a['stream_name']
             data['pawprint_ID'] = a['pawprint_ID']
@@ -117,22 +131,28 @@ class Pawprint(dict):
             data['cmd_filters'] = a['cmd_filters']
 
             #now create footprints from vertices
-            data['sky'] = {}
+            data['stream_vertices'] = a['on_stream']['sky']['vertices'][:]
+            data['background_vertices'] = a['off_stream']['vertices'][:]
 
             if a['on_stream']['cmd'] is not None:
-                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'],
-                    a['on_stream']['cmd'][k])['footprint_type']) for k in a['on_stream']['cmd'].keys()])
+                data['cmd_vertices'] = dict([(k,a['on_stream']['cmd'][k]['vertices']) for k in a['on_stream']['cmd'].keys()])
 
             if a['on_stream']['pm'] is not None:
-                data['cmd_vertices'] = dict([(k,Footprint2D(a['on_stream']['cmd'][k]['vertices'],
-                    a['on_stream']['cmd'][k])['footprint_type']) for k in a['on_stream']['cmd'].keys()])
+                data['pm_vertices'] = dict([(k,a['on_stream']['pm'][k]['vertices']) for k in a['on_stream']['pm'].keys()])
+
+            #right now getting track from galstreams since I can't save it yet
+            galstreams_dir = os.path.dirname(gst.__file__)
+            galstreams_tracks = os.path.join(galstreams_dir, 'tracks/')
+            track_file = _make_track_file_name(data['stream_name'],data['pawprint_ID'])
+            summary_file = _make_summary_file_name(data['stream_name'],data['pawprint_ID'])
+            data['track'] = gst.Track6D(stream_name=data['stream_name'], track_name=data['pawprint_ID'], track_file=track_file, summary_file=summary_file)
 
         return cls(data)
 
 
 
     @classmethod
-    def pawprint_from_galstreams(cls,stream_name,pawprint_ID):
+    def from_galstreams(cls,stream_name,pawprint_ID):
 
         galstreams_dir = os.path.dirname(gst.__file__)
         galstreams_tracks = os.path.join(galstreams_dir, 'tracks/')
@@ -162,6 +182,25 @@ class Pawprint(dict):
 
             return GreatCircleICRSFrame(pole=mid_pole, ra0=mid_point.icrs.ra)
 
+        def get_recommended_stream_width(stream_name):
+            '''as recommended by Cecilia. 
+               eventually pulled from galstreams as an attribute of the track'''
+            if 'Jhelum' in stream_name:
+                if 'Jhelum-a' in stream_name:
+                    return 0.4*u.deg
+                else:
+                    return 0.94*u.deg
+            elif 'Fjorm' in stream_name:
+                return 0.9*u.deg
+            elif 'Pal-5' in stream_name:
+                return 0.5*u.deg
+            elif 'GD-1' in stream_name:
+                return 0.53*u.deg
+            elif 'PS1-A' in stream_name:
+                return 0.45*u.deg
+            else: #default
+                return 1.*u.deg
+
         data = {}
         data['stream_name'] = stream_name
         data['pawprint_ID'] = pawprint_ID
@@ -171,7 +210,7 @@ class Pawprint(dict):
         data['stream_frame'] = _get_stream_frame_from_file(summary_file)
 
         data['track'] = gst.Track6D(stream_name=data['stream_name'], track_name=data['pawprint_ID'], track_file=track_file, summary_file=summary_file)
-        data['width'] = 1.0*u.deg
+        data['width'] = 2.0*get_recommended_stream_width(stream_name)
         data['stream_vertices'] = data['track'].create_sky_polygon_footprint_from_track(width=data['width'], phi2_offset=0.*u.deg)
         data['background_vertices'] = data['track'].create_sky_polygon_footprint_from_track(width=data['width'], phi2_offset=3.*u.deg)
         data['cmd_filters'] = None
