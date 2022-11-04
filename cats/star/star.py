@@ -1,5 +1,5 @@
 import numpy as np
-from astropy.coordinates import SkyCoord, CoordFrame
+from astropy.coordinates import CoordFrame, SkyCoord
 
 #notes on data types
 dtypes_dict = {
@@ -67,15 +67,15 @@ def get_abundances():
 
 class Star(dict):
 	def __init__(self, streamID):
-		#starclass 
+		#starclass
 		self.data = StarData(streamID)
 		self.derived = StarDerived(streamID)
 
 
 class StarData(dict):
 	'''dictionary class to store __measured__ attributes for one star in the catalog'''
-    def __init__(self, streamID): 
-    	
+    def __init__(self, streamID):
+
     	self.sourceID_version = np.uint(3) #default for now is DR3
     	self.streamID = np.str_(streamID)
 
@@ -86,7 +86,7 @@ class StarData(dict):
     	self.crossmatches = {}
 
     	self.w, self.w_uncert = phasespace_to_skycoords() #TODO:function to return sky coordinates and uncertainties in two skycoord objects by querying Gaia
-    	
+
     	#flexible magnitudes - pin down standardised naming convention
     	#my proposal: [survey]_[filter]
     	#uncertainties and extinctions are specified by the same tags
@@ -97,12 +97,12 @@ class StarData(dict):
 
     	self.variability = np.array(nstars,dtype='u2')
 
-    	self.feh = np.masked_array(nstars,dtype='f4') 
+    	self.feh = np.masked_array(nstars,dtype='f4')
     	self.feh_logeps = np.masked_array(nstars,dtype='f4')
     	self.feh_solar = np.masked_array(nstars,dtype='f4')
     	self.alpha_logeps = np.masked_array(nstars,dtype='f4')
     	self.alpha_fe = np.masked_array(nstars,dtype='f4')
-    	self.alpha_solar = np.masked_array(nstars,dtype='f4') 
+    	self.alpha_solar = np.masked_array(nstars,dtype='f4')
 
     	self.refs = {
 			'distance': np.array(nstars,dtype='s19') #ADS bibcode (or pointer to doi) for distance measurement; can be a list
@@ -111,7 +111,7 @@ class StarData(dict):
 			'alpha': np.array(nstars,dtype='s19')
 			'variability': np.array(nstars,dtype='s19')
     	}
-    	
+
     	#some stuff could be read directly and stored
     	if get_gaia:
 	    	get_gaia_photometry(self) #load gaia photometry in from catalog
@@ -131,5 +131,3 @@ def makeMask(self, pawprint, what):
         '''take in some data and return masks for stuff in the pawprint (basically by successively applying _inside_poly)'''
         #returns mask with same dimension as data
         ...
-
-
