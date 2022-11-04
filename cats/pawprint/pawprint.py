@@ -11,20 +11,45 @@ import os
 
 #class densityClass: #TODO: how to represent densities?
 
-class Footprint2D(dict):
+class Footprint2D:
     def __init__(self, vertex_coordinates, footprint_type, stream_frame=None):
         if footprint_type=='sky':
             if isinstance(vertex_coordinates, SkyCoord):
                 vc = vertex_coordinates
             else:
-                if isinstance(vertex_coordinates, u.Quantity):
+                #check if the vertices come with units
+                has_units = True
+                for v in vertex_coordinates:
+                    has_units *= isinstance(v[0], u.Quantity)
+                    has_units *= isinstance(v[1], u.Quantity)
+                if has_units:
                     #assume coordinates are in stream frame
                     vc = SkyCoord(vertex_coordinates,frame=stream_frame)
                 else:
                     #assume units are degrees and frame is phi1/phi2
-                    vc = SkyCoord(vertex_coordinates*u.deg,frame=stream_frame)
+                    vc = SkyCoord(vertex_coordinates,unit="deg",frame=stream_frame)
             self.edges = vc
             self.vertices = np.array([vc.transform_to(stream_frame).phi1, vc.transform_to(stream_frame).phi2]).T
+
+#HELP - how do we do PMs properly?
+        elif footprint_type =='pm':
+            if isinstance(vertex_coordinates, SkyCoord):
+                vc = vertex_coordinates
+            else:
+                #check if the vertices come with units
+                has_units = True
+                for v in vertex_coordinates:
+                    has_units *= isinstance(v[0], u.Quantity)
+                    has_units *= isinstance(v[1], u.Quantity)
+                if has_units:
+                    #assume coordinates are in stream frame
+                    vc = SkyCoord(vertex_coordinates,frame=stream_frame)
+                else:
+                    #assume units are mas/yr and frame is phi1/phi2
+                    vc = SkyCoord(stream_frame,lat=vertex_coordinates[0], lon=vertex_coordinates[1],unit='mas/yr')
+            self.edges = vc
+            self.vertices = np.array([vc.transform_to(stream_frame).phi1, vc.transform_to(stream_frame).phi2]).T
+
 
         elif footprint_type=='cartesian':
             self.edges = vertex_coordinates
@@ -35,15 +60,19 @@ class Footprint2D(dict):
         self.footprint = mpl_path(self.vertices)
 
     @classmethod
-    def from_vertices(cls, vertex_coordinates, footprint_type):
-        return cls(vertices,footprint_type)
-    def get_vertices_from_box(self,min1, max1, min2, max2):
-        return [[min1,min2],[min1,max2],[max1,min2],[max1,max2]]
+    def from_vertices(cls, vertex_coordinates, footprint_type, stream_frame=None):
+        return cls(vertices,footprint_type,stream_frame)
+    
+
 
     @classmethod
-    def from_box(cls, min1, max1, min2, max2, footprint_type):
+    def from_box(cls, min1, max1, min2, max2, footprint_type, stream_frame=None):
+
+        def get_vertices_from_box(min1, max1, min2, max2):
+            return [[min1,min2],[min1,max2],[max1,min2],[max1,max2]]
+
         vertices = get_vertices_from_box(min1, max1, min2, max2)
-        return cls(vertices,footprint_type)
+        return cls(vertices,footprint_type,stream_frame)
 
     @classmethod
     def from_file(cls,fname):
@@ -55,7 +84,7 @@ class Footprint2D(dict):
     def inside_footprint(self,data):
         if isinstance(data, SkyCoord):
             if self.stream_frame is None:
-                print("can't!")
+                print("can't!") #yeah this is my error catching right now
                 return
             else:
                 pts = np.array([data.transform_to(self.stream_frame).phi1.value,data.transform_to(self.stream_frame).phi2.value]).T
@@ -223,17 +252,16 @@ class Pawprint(dict):
 
     def add_cmd_footprint(self, new_footprint, color, mag, name):
         if self.cmd_filters is None:
-            self.cmd_filters = dict((name,[color, mag]))
-            self.cmdprint = dict((name, new_footprint))
-        else:
-            self.cmd_filters[name] = [color,mag]
-            self.cmdprint[name] = new_footprint
+            self.cmd_filters = {}
+            self.cmdprint = {}
+        
+        self.cmd_filters[name] = [color,mag]
+        self.cmdprint[name] = new_footprint
 
     def add_pm_footprint(self, new_footprint, name):
         if self.pmprint is None:
-            self.pmprint = dict((name, new_footprint))
-        else:
-            self.pmprint[name] = new_footprint
+            self.pmprint = {}
+        self.pmprint[name] = new_footprint
 
 
     def save_pawprint(self):
