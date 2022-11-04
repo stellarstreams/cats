@@ -1,6 +1,5 @@
 import astropy.table as at
 import matplotlib.pyplot as plt
-
 from CMD import Isochrone
 
 
