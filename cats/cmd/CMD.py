@@ -9,10 +9,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+from astropy.convolution import Gaussian1DKernel, convolve
 from scipy.interpolate import interp1d
 from scipy.signal import correlate2d
 from ugali.analysis.isochrone import factory as isochrone_factory
-from astropy.convolution import Gaussian1DKernel, convolve
 
 plt.rc(
     "xtick",
