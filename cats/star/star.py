@@ -56,7 +56,7 @@ dtypes_dict = {
 
 }
 
-#functions imported from 
+#functions imported from
 def get_phase_space():
     '''queries gaia to initialize SkyCoords for phase-space position and uncertainty'''
 
@@ -69,7 +69,7 @@ def get_abundances():
 
 class Star:
     def __init__(self, streamID):
-        #starclass 
+        #starclass
         self.data = StarData(streamID)
         self.derived = StarDerived(streamID)
     @classmethod
@@ -78,8 +78,8 @@ class Star:
 
 class StarData:
     '''dictionary class to store __measured__ attributes for one star in the catalog'''
-    def __init__(self, streamID, pawprintID): 
-        
+    def __init__(self, streamID, pawprintID):
+
         self.sourceID_version = np.uint(3) #default for now is DR3
         self.streamID = np.str_(streamID)
         self.pawprintID = np.str_(pawprintID)
@@ -92,7 +92,7 @@ class StarData:
         self.crossmatches = {} #TODO: how to rept crossmatches to other catalogs
 
         self.w, self.w_uncert = phasespace_to_skycoords() #TODO:function to return sky coordinates and uncertainties in two skycoord objects by querying Gaia
-        
+
         #flexible magnitudes - pin down standardised naming convention
         #my proposal: [survey]_[filter]
         #uncertainties and extinctions are specified by the same tags
@@ -103,12 +103,12 @@ class StarData:
 
         self.variability = np.array(nstars,dtype='u2')
 
-        self.feh = np.masked_array(nstars,dtype='f4') 
+        self.feh = np.masked_array(nstars,dtype='f4')
         self.feh_logeps = np.masked_array(nstars,dtype='f4')
         self.feh_solar = np.masked_array(nstars,dtype='f4')
         self.alpha_logeps = np.masked_array(nstars,dtype='f4')
         self.alpha_fe = np.masked_array(nstars,dtype='f4')
-        self.alpha_solar = np.masked_array(nstars,dtype='f4') 
+        self.alpha_solar = np.masked_array(nstars,dtype='f4')
 
         self.refs = {
             'distance': np.array(nstars,dtype='s19') #ADS bibcode (or pointer to doi) for distance measurement; can be a list
@@ -135,4 +135,3 @@ def makeMask(self, what):
         mask = np.zeros(len(self.sourceID))
         if 'sky' in what:
             mask += self.pawprint
-
