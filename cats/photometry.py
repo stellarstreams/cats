@@ -3,11 +3,11 @@ import abc
 import astropy.coordinates as coord
 import astropy.table as at
 import astropy.units as u
-from dustmaps.sfd import SFDQuery
 import numpy as np
+from dustmaps.sfd import SFDQuery
 from pyia import GaiaData
 
-__all__ = ['PS1Phot', 'GaiaDR3Phot', 'DESY6Phot']
+__all__ = ["PS1Phot", "GaiaDR3Phot", "DESY6Phot"]
 
 
 class PhotometricSurvey(abc.ABC):
@@ -73,22 +73,22 @@ class PhotometricSurvey(abc.ABC):
         new_band_names = []
         for band, short_name in self.band_names.items():
             Ax = self.extinction_coeffs[short_name] * ebv
-            tbl[f'A_{short_name}'] = Ax
-            tbl[f'{short_name}0'] = self.data[band] - Ax
-            new_band_names.append(f'{short_name}0')
-        tbl.meta['band_names'] = new_band_names
-        tbl.meta['dustmap'] = dustmaps_cls.__class__.__name__
+            tbl[f"A_{short_name}"] = Ax
+            tbl[f"{short_name}0"] = self.data[band] - Ax
+            new_band_names.append(f"{short_name}0")
+        tbl.meta["band_names"] = new_band_names
+        tbl.meta["dustmap"] = dustmaps_cls.__class__.__name__
 
         return tbl
 
 
 class PS1Phot(PhotometricSurvey):
     band_names = {
-        "gMeanPSFMag": 'g',
-        "rMeanPSFMag": 'r',
-        "iMeanPSFMag": 'i',
-        "zMeanPSFMag": 'z',
-        "yMeanPSFMag": 'y',
+        "gMeanPSFMag": "g",
+        "rMeanPSFMag": "r",
+        "iMeanPSFMag": "i",
+        "zMeanPSFMag": "z",
+        "yMeanPSFMag": "y",
     }
 
     # Schlafly+2011, Rv=3.1
@@ -101,7 +101,7 @@ class PS1Phot(PhotometricSurvey):
     }
 
     def get_skycoord(self):
-        return coord.SkyCoord(self.data['raMean']*u.deg, self.data['decMean']*u.deg)
+        return coord.SkyCoord(self.data["raMean"] * u.deg, self.data["decMean"] * u.deg)
 
     def get_star_mask(self):
         """
@@ -115,15 +115,15 @@ class PS1Phot(PhotometricSurvey):
         star_mask : `numpy.ndarray`
             True where the stars are.
         """
-        d_mag_mask = self.data['iMeanPSFMag'] - self.data['iMeanKronMag'] < 0.05
+        d_mag_mask = self.data["iMeanPSFMag"] - self.data["iMeanKronMag"] < 0.05
         return d_mag_mask
 
 
 class GaiaDR3Phot(PhotometricSurvey):
     band_names = {
-        'phot_g_mean_mag': 'G',
-        'phot_bp_mean_mag': 'BP',
-        'phot_rp_mean_mag': 'RP',
+        "phot_g_mean_mag": "G",
+        "phot_bp_mean_mag": "BP",
+        "phot_rp_mean_mag": "RP",
     }
     custom_extinction = True
 
@@ -141,27 +141,27 @@ class GaiaDR3Phot(PhotometricSurvey):
             dustmaps_cls = self.dustmaps_cls
         g = GaiaData(self.data)
         As = g.get_ext(dustmaps_cls=self.dustmaps_cls)
-        As = {'G': As[0], 'BP': As[1], 'RP': As[2]}  # NOTE: assumption!
+        As = {"G": As[0], "BP": As[1], "RP": As[2]}  # NOTE: assumption!
 
         tbl = at.Table()
         new_band_names = []
         for band, short_name in self.band_names.items():
             Ax = As[short_name]
-            if hasattr(Ax, 'value'):
+            if hasattr(Ax, "value"):
                 Ax = Ax.value
-            tbl[f'A_{short_name}'] = Ax
-            tbl[f'{short_name}0'] = self.data[band] - Ax
-            new_band_names.append(f'{short_name}0')
-        tbl.meta['band_names'] = new_band_names
-        tbl.meta['dustmap'] = dustmaps_cls.__class__.__name__
+            tbl[f"A_{short_name}"] = Ax
+            tbl[f"{short_name}0"] = self.data[band] - Ax
+            new_band_names.append(f"{short_name}0")
+        tbl.meta["band_names"] = new_band_names
+        tbl.meta["dustmap"] = dustmaps_cls.__class__.__name__
 
         return tbl
 
 
 class DESY6Phot(PhotometricSurvey):
     band_names = {
-        'WAVG_MAG_PSF_G': 'g',
-        'WAVG_MAG_PSF_R': 'r',
+        "WAVG_MAG_PSF_G": "g",
+        "WAVG_MAG_PSF_R": "r",
     }
     # Schlafly+2011, Rv=3.1
     extinction_coeffs = {
@@ -171,13 +171,13 @@ class DESY6Phot(PhotometricSurvey):
     custom_extinction = True
 
     def get_skycoord(self):
-        return coord.SkyCoord(self.data['RA']*u.deg, self.data['DEC']*u.deg)
+        return coord.SkyCoord(self.data["RA"] * u.deg, self.data["DEC"] * u.deg)
 
     def get_star_mask(self):
         """
         Star-galaxy separation:
         """
-        return (self.data['EXT_FITVD'] >= 0) & (self.data['EXT_FITVD'] < 2)
+        return (self.data["EXT_FITVD"] >= 0) & (self.data["EXT_FITVD"] < 2)
 
     def get_ext_corrected_phot(self, dustmaps_cls=None):
         if dustmaps_cls is None:
@@ -190,10 +190,10 @@ class DESY6Phot(PhotometricSurvey):
         new_band_names = []
         for short_name in self.band_names.values():
             Ax = self.extinction_coeffs[short_name] * ebv
-            tbl[f'A_{short_name}'] = Ax
-            tbl[f'{short_name}0'] = self.data[f'BDF_MAG_{short_name.upper()}_CORRECTED']
-            new_band_names.append(f'{short_name}0')
-        tbl.meta['band_names'] = new_band_names
-        tbl.meta['dustmap'] = dustmaps_cls.__class__.__name__
+            tbl[f"A_{short_name}"] = Ax
+            tbl[f"{short_name}0"] = self.data[f"BDF_MAG_{short_name.upper()}_CORRECTED"]
+            new_band_names.append(f"{short_name}0")
+        tbl.meta["band_names"] = new_band_names
+        tbl.meta["dustmap"] = dustmaps_cls.__class__.__name__
 
         return tbl
