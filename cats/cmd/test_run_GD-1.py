@@ -1,24 +1,34 @@
 import astropy.table as at
+from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
+import galstreams
+
 from CMD import Isochrone
+
+import sys
+sys.path.append('/Users/Tavangar/CATS_workshop/cats/')
+from cats.pawprint.pawprint import Pawprint, Footprint2D
+from cats.data import make_astro_photo_joined_data
 
 
 def main() -> int:
-    fn = "./joined-GD-1.fits"
+    fn = "/Users/Tavangar/CATS_workshop/cats/data/joined-GD-1.fits"
     cat = at.Table.read(fn)
 
-    sky_poly = [[-20, -2], [-40, -2], [-40, 2], [-20, 2]]
+    p = Pawprint.pawprint_from_galstreams('GD-1','pricewhelan2018')
 
     pm_poly = [[-9, -2], [-9, 0.5], [-4, 1.5], [-4, -1]]
+    p.pmprint = Footprint2D(pm_poly, footprint_type='cartesian')
+
 
     o = Isochrone(
         cat,
         age=10.00,  # Gyr
         feh=-1.5,
         distance=8.3,  # kpc
+        dist_grad=0,
         alpha=0.0,
-        sky_poly=sky_poly,
-        pm_poly=pm_poly,
+        pawprint=p,
     )
 
     o.generate_isochrone()
@@ -43,7 +53,6 @@ def main() -> int:
     # plt.plot(iso_patch[:,0], iso_patch[:,1], '--k')
     # plt.gca().invert_yaxis()
     # plt.show()
-
     return 0
 
 

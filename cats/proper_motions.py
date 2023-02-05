@@ -11,6 +11,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import galstreams
 import gala.coordinates as gc
 from scipy.spatial import ConvexHull
+import matplotlib as mpl
 
 
 # %%
@@ -23,11 +24,13 @@ from scipy.spatial import ConvexHull
 # define our mask
 
 
-class ProperMotionSelection():
-    def __init__(self, stream_obj, 
-                 CMD_mask=None, 
-                 spatial_mask_on=None, 
-                 spatial_mask_off=None, 
+class ProperMotionSelection:
+    def __init__(self, stream_obj, data,
+                 pawprint,
+                 #CMD_mask=True, 
+                 #spatial_mask_on=True, 
+                 #spatial_mask_off=True, 
+                 dist_grad = 0, #encode this into pawprint so it is not an input here
                  best_pm_phi1_mean = None,
                  best_pm_phi2_mean = None, 
                  best_pm_phi1_std = None,
@@ -55,11 +58,13 @@ class ProperMotionSelection():
         # stream_obj starting as galstream but then should be replaced by best values that we find
         
         self.stream_obj = stream_obj
-        
-        self.spatial_mask_on = spatial_mask_on
-        self.spatial_mask_off = spatial_mask_off
-        self.mask = spatial_mask_on & CMD_mask
-        self.off_mask = spatial_mask_off & CMD_mask
+        self.data = data
+        self.pawprint = pawprint
+        self.dist_grad = dist_grad
+        self.sel_sky()
+        self.sel_cmd()
+        self.mask = self.spatial_mask_on & self.CMD_mask
+        self.off_mask = self.spatial_mask_off & self.CMD_mask
         self.cutoff = cutoff
 
         assert(self.cutoff <= 1 and self.cutoff >= 0), "the value of self.cutoff put in does not make sense! It has to be between 0 and 1"
@@ -88,9 +93,14 @@ class ProperMotionSelection():
             self.best_pm_phi2_std = best_pm_phi2_std
 
         print("Producing the initial mask")
-        self.pm_mask = self.build_mask(n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2, refine_factor = refine_factor)
+        self.pm_poly = self.build_mask(data, n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2, refine_factor = refine_factor)
         
-        self.mask = self.mask & self.pm_mask
+        pm_poly_patch = mpl.patches.Polygon(
+            self.pm_poly, facecolor="none", edgecolor="k", linewidth=2)
+        pm_points = np.vstack((data['pm_phi1_cosphi2'], data['pm_phi2'])).T
+        self.pm_mask = pm_poly_patch.get_path().contains_points(pm_points)
+        
+        self.mask = self.pm_mask & self.mask
 
         # Nondh and Bruno added
         # from galstream
@@ -103,6 +113,41 @@ class ProperMotionSelection():
         self.pm_phi2 = data['pm_phi2'][self.mask]
 
         return None
+    
+    def sel_sky(self):
+
+        """
+        Initialising the on-sky polygon mask to return only contained sources.
+        """
+        on_poly_patch = mpl.patches.Polygon(
+            self.pawprint.skyprint['stream'].vertices[::100], facecolor="none", edgecolor="k", linewidth=2
+        )
+        on_points = np.vstack((self.data["phi1"], self.data["phi2"])).T
+        on_mask = on_poly_patch.get_path().contains_points(on_points)
+        
+        off_poly_patch = mpl.patches.Polygon(
+            self.pawprint.skyprint['background'].vertices[::100], facecolor="none", edgecolor="k", linewidth=2
+        )
+        off_points = np.vstack((self.data["phi1"], self.data["phi2"])).T
+        off_mask = on_poly_patch.get_path().contains_points(on_points)
+
+        self.spatial_mask_on = on_mask
+        self.spatial_mask_off = off_mask
+
+    def sel_cmd(self):
+
+        """
+        Initialising the proper motions polygon mask to return only contained sources.
+        """
+
+        mag1 = 'g0' ; mag2 = 'r0'
+        cmd_poly_patch = mpl.patches.Polygon(
+            self.pawprint.cmdprint.vertices, facecolor="none", edgecolor="k", linewidth=2)
+        
+        cmd_points = np.vstack((self.data[mag1] - self.data[mag2], self.data[mag1] - self.dist_grad*self.data['phi1'])).T
+        cmd_mask = cmd_poly_patch.get_path().contains_points(cmd_points)
+        
+        self.CMD_mask = cmd_mask
     
     @staticmethod
     def two_dimensional_gaussian(x, y, x0, y0, sigma_x, sigma_y):
@@ -126,12 +171,12 @@ class ProperMotionSelection():
 
         # First generate the 2D histograms
         pm_phi1_min, pm_phi1_max = (self.best_pm_phi1_mean - \
-            n_dispersion_phi1*self.pm_phi1_std, \
-            self.best_pm_phi1_mean + n_dispersion_phi1*self.pm_phi1_std)
+            n_dispersion_phi1*self.best_pm_phi1_std, \
+            self.best_pm_phi1_mean + n_dispersion_phi1*self.best_pm_phi1_std)
 
         pm_phi2_min, pm_phi2_max = (self.best_pm_phi2_mean - \
-            n_dispersion_phi2*self.pm_phi2_std, \
-            self.best_pm_phi2_mean + n_dispersion_phi2*self.pm_phi2_std)
+            n_dispersion_phi2*self.best_pm_phi2_std, \
+            self.best_pm_phi2_mean + n_dispersion_phi2*self.best_pm_phi2_std)
 
         pm_phi1_array = np.linspace(pm_phi1_min, pm_phi1_max, refine_factor)
         pm_phi2_array = np.linspace(pm_phi2_min, pm_phi2_max, refine_factor)
@@ -141,7 +186,7 @@ class ProperMotionSelection():
         points_y = np.zeros((len(pm_phi1_array), refine_factor))
 
         for n, s in enumerate(pm_phi1_array):
-            pm_pdf[n,:] = self.two_dimensional_gaussian(s, pm_phi2_array, self.best_pm_phi1_mean, self.best_pm_phi2_mean, self.pm_phi1_std, self.pm_phi2_std)
+            pm_pdf[n,:] = self.two_dimensional_gaussian(s, pm_phi2_array, self.best_pm_phi1_mean, self.best_pm_phi2_mean, self.best_pm_phi1_std, self.best_pm_phi2_std)
             points_x[n,:] = np.array([s for _ in range(len(pm_phi2_array))])
             points_y[n,:] = pm_phi2_array
 
@@ -170,7 +215,7 @@ class ProperMotionSelection():
         # resize and fix column name
         scatter_size = 1./data_on['pmra_error']
         
-        ax[0].scatter(data_on['PMPHI1'], data_on['PMPHI2'], c='k', s=scatter_size, alpha=0.2, **kwargs)
+        ax[0].scatter(data_on['pm_phi1_cosphi2'], data_on['pm_phi2'], c='k', s=scatter_size, alpha=0.2, **kwargs)
 
         if mask:
             vertices = self.build_mask(n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2, refine_factor = refine_factor)
@@ -190,7 +235,7 @@ class ProperMotionSelection():
 
         # resize and fix column name
         scatter_size = 1./data_off['pmra_error']
-        ax[1].scatter(data_off['PMPHI1'], data_off['PMPHI2'], c='k', s=scatter_size, alpha=0.2, **kwargs)
+        ax[1].scatter(data_off['pm_phi1_cosphi2'], data_off['pm_phi2'], c='k', s=scatter_size, alpha=0.2, **kwargs)
 
         if mask:
             ax[1].plot(vert.T[0],vert.T[1], 'k-')
@@ -224,12 +269,12 @@ class ProperMotionSelection():
 
         # data access depends on structure, needs to be adapted
         if stream_coords:
-            h1 = np.histogram2d(data_on['PMPHI1'], data_on['PMPHI2'], bins)[0]
-            h2 = np.histogram2d(data_off['PMPHI1'], data_off['PMPHI2'], bins)[0]
+            h1 = np.histogram2d(data_on['pm_phi1_cosphi2'], data_on['pm_phi2'], bins)[0]
+            h2 = np.histogram2d(data_off['pm_phi1_cosphi2'], data_off['pm_phi2'], bins)[0]
         else:
             if reflex_corr:
-                h1 = np.histogram2d(data_on['PMRA'], data_on['PMDEC'], bins)[0]
-                h2 = np.histogram2d(data_off['PMRA'], data_off['PMDEC'], bins)[0]
+                h1 = np.histogram2d(data_on['pm_ra'], data_on['pm_dec'], bins)[0]
+                h2 = np.histogram2d(data_off['pm_ra'], data_off['pm_dec'], bins)[0]
             else:
                 h1 = np.histogram2d(data_on['PMRA0'], data_on['PMDEC0'], bins)[0]
                 h2 = np.histogram2d(data_off['PMRA0'], data_off['PMDEC0'], bins)[0]
@@ -401,16 +446,16 @@ class ProperMotionSelection():
 
                 ax.set_xlabel(r'$\mu_{\phi_1}$', fontsize=20)
             axes[0].set_ylabel(r'$\mu_{\phi_2}$', fontsize=20)
-		
+
         self.best_pm_phi1_mean = pm_x_cen
         self.best_pm_phi2_mean = pm_y_cen
         self.best_pm_phi1_std = x_std
         self.best_pm_phi2_std = y_std
-		
+
         return [pm_x_cen, pm_y_cen, x_std, y_std]
 
     
-  
+
 def colorbar(mappable):
     ax = mappable.axes
     fig = ax.figure

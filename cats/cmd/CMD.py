@@ -12,6 +12,10 @@ import scipy
 from scipy.interpolate import interp1d
 from scipy.signal import correlate2d
 from ugali.analysis.isochrone import factory as isochrone_factory
+from astropy.coordinates import SkyCoord
+import sys
+sys.path.append('/Users/Tavangar/CATS_workshop/cats/')
+from cats.pawprint.pawprint import Pawprint, Footprint2D
 
 plt.rc(
     "xtick",
@@ -32,8 +36,7 @@ plt.rc(
 
 
 class Isochrone:
-    def __init__(self, cat, age, feh, distance, alpha, sky_poly, pm_poly):
-
+    def __init__(self, cat, age, feh, distance, dist_grad, alpha, pawprint):
         """
         Defining variables loaded into class.
 
@@ -44,9 +47,9 @@ class Isochrone:
         age = Input age of stream from galstreams and/or literature.
         feh = Input metallicity from galstreams and/or literature.
         distance = Input distance from galstreams and/or literature.
+        dist_grad = Input distance_gradient from galstreams and/or literature in magnitudes/deg
         alpha = alpha/Fe
-        sky_poly = Polygon mask from sky selection in (RA, Dec).
-        pm_poly = Polygon mask from proper motions in (pm1, pm2).
+        pawprint = Stream multidimensional footprint
         """
         # Maybe include distance track?
         # Pull survey from catalog?
@@ -54,12 +57,50 @@ class Isochrone:
         self.age = age
         self.feh = feh
         self.distance = distance
+        self.dist_mod = 5 * np.log10(self.distance * 1000) - 5
+        self.dist_grad = dist_grad
         self.alpha = alpha
-        self.sky_poly = sky_poly
-        self.pm_poly = pm_poly
+        
+        self.pawprint = pawprint
+        
         self.x_shift = 0
         self.y_shift = 0
         self.survey = "ps1"
+    
+#     def __init__(self, cat, age, feh, distance, dist_grad, alpha, sky_poly, pm_poly):
+
+#         """
+#         Defining variables loaded into class.
+
+#         ------------------------------------------------------------------
+
+#         Parameters:
+#         cat = Input catalogue.
+#         age = Input age of stream from galstreams and/or literature.
+#         feh = Input metallicity from galstreams and/or literature.
+#         distance = Input distance from galstreams and/or literature.
+#         dist_grad = Input distance_gradient from galstreams and/or literature in magnitudes/deg
+#         alpha = alpha/Fe
+#         sky_poly = Polygon mask from sky selection in (RA, Dec).
+#         pm_poly = Polygon mask from proper motions in (pm1, pm2).
+#         """
+#         # Maybe include distance track?
+#         # Pull survey from catalog?
+#         self.cat = cat
+#         self.age = age
+#         self.feh = feh
+#         self.distance = distance
+#         self.dist_mod = 5 * np.log10(self.distance * 1000) - 5
+#         self.dist_grad = dist_grad
+#         self.alpha = alpha
+#         if isinstance(sky_poly, SkyCoord):
+#             self.sky_poly = np.array([sky_poly.phi1.value, sky_poly.phi2.value]).T
+#         else: 
+#             self.sky_poly = sky_poly
+#         self.pm_poly = pm_poly
+#         self.x_shift = 0
+#         self.y_shift = 0
+#         self.survey = "ps1"
 
     def sel_sky(self):
 
@@ -68,7 +109,7 @@ class Isochrone:
         """
         cat = self.cat
         on_poly_patch = mpl.patches.Polygon(
-            self.sky_poly, facecolor="none", edgecolor="k", linewidth=2
+            self.pawprint.skyprint['stream'].vertices[::100], facecolor="none", edgecolor="k", linewidth=2
         )
         on_points = np.vstack((cat["phi1"], cat["phi2"])).T
         on_mask = on_poly_patch.get_path().contains_points(on_points)
@@ -83,7 +124,7 @@ class Isochrone:
 
         cat = self.cat
         on_poly_patch = mpl.patches.Polygon(
-            self.pm_poly, facecolor="none", edgecolor="k", linewidth=2
+            self.pawprint.pmprint.vertices, facecolor="none", edgecolor="k", linewidth=2
         )
         on_points = np.vstack((cat["pm_phi1_cosphi2"], cat["pm_phi2"])).T
         on_mask = on_poly_patch.get_path().contains_points(on_points)
@@ -106,7 +147,7 @@ class Isochrone:
             "Dotter",
             survey=self.survey,
             age=self.age,
-            distance_modulus=5 * np.log10(self.distance * 1000) - 5,
+            distance_modulus=self.dist_mod,
             z=z,
             band_1="g",
             band_2="r",
@@ -146,7 +187,7 @@ class Isochrone:
     def data_cmd(self, xbin, ybin, xrange=[-0.5, 1.0], yrange=[15, 22]):
 
         """
-        Empirical CMD generated from the input catalogue.
+        Empirical CMD generated from the input catalogue, with distance gradient accounted for.
 
         ------------------------------------------------------------------
 
@@ -162,7 +203,7 @@ class Isochrone:
 
         data, xedges, yedges = np.histogram2d(
             (tab["g0"] - tab["r0"])[self.on_pmmask & self.on_skymask],
-            tab["g0"][self.on_pmmask & self.on_skymask],
+            (tab["g0"] - self.dist_grad*tab["phi1"])[self.on_pmmask & self.on_skymask],
             bins=[x_bins, y_bins],
             density=True,
         )
@@ -205,7 +246,8 @@ class Isochrone:
         cmd_poly_patch = mpl.patches.Polygon(
             cmd_poly, facecolor="none", edgecolor="k", linewidth=2
         )
-        cmd_points = np.vstack((self.cat[mag1] - self.cat[mag2], self.cat[mag1])).T
+        
+        cmd_points = np.vstack((self.cat[mag1] - self.cat[mag2], self.cat[mag1] - self.dist_grad*self.cat['phi1'])).T
         cmd_mask = cmd_poly_patch.get_path().contains_points(cmd_points)
 
         return cmd_poly, cmd_mask
@@ -226,7 +268,9 @@ class Isochrone:
         )
 
         signal_counts, xedges, yedges = np.histogram2d(
-            self.mag1 - self.mag2, self.mag1, bins=[self.x_edges, self.y_edges]
+            self.mag1 - self.mag2, 
+            self.mag1, 
+            bins=[self.x_edges, self.y_edges]
         )
         signal = signal / signal_counts
         signal[np.isnan(signal)] = 0.0
@@ -247,9 +291,6 @@ class Isochrone:
         Select the stars that are within the CMD polygon cut
         --------------------------------
         Parameters:
-        - mag1: g-magnitudes of all stars in catalog (or other band for different surveys)
-        - mag2: i-magnitudes of all stars in catalog (or other band for different surveys)
-        - masses: theoretical mass from isochrone for each star in the catalog
         - tolerance: half the "width" of the created CMD polygon
         - maxmag: faint limit of created CMD polygon, should be deeper than all data
         - mass_thresh: upper limit for the theoretical mass that dictates the bright limit of the
@@ -283,7 +324,11 @@ class Isochrone:
 
         cmd_poly, cmd_mask = self.make_poly(iso_low, iso_high, maxmag=24, minmag=14)
 
-        return cmd_poly, cmd_mask, iso_model, iso_low, iso_high
+        #self.pawprint.cmd_filters = ... need to specify this since g vs g-r is a specific choice
+        self.pawprint.cmdprint = Footprint2D(cmd_poly, footprint_type='cartesian')
+        #self.pawprint.save_pawprint(...)
+        
+        return cmd_poly, cmd_mask, iso_model, iso_low, iso_high, self.pawprint
 
     def plot_CMD(self, tolerance):
         """
