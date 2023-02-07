@@ -86,7 +86,6 @@ class Pawprint(dict):
     """
 
     def __init__(self, data):
-
         self.stream_name = data["stream_name"]
         self.pawprint_ID = data["pawprint_ID"]
         self.stream_frame = data["stream_frame"]
@@ -171,7 +170,6 @@ class Pawprint(dict):
 
     @classmethod
     def pawprint_from_galstreams(cls, stream_name, pawprint_ID):
-
         galstreams_dir = os.path.dirname(gst.__file__)
         galstreams_tracks = os.path.join(galstreams_dir, "tracks/")
 

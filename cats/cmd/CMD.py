@@ -33,7 +33,6 @@ plt.rc(
 
 class Isochrone:
     def __init__(self, cat, age, feh, distance, alpha, sky_poly, pm_poly):
-
         """
         Defining variables loaded into class.
 
@@ -62,7 +61,6 @@ class Isochrone:
         self.survey = "ps1"
 
     def sel_sky(self):
-
         """
         Initialising the on-sky polygon mask to return only contained sources.
         """
@@ -76,7 +74,6 @@ class Isochrone:
         self.on_skymask = on_mask
 
     def sel_pm(self):
-
         """
         Initialising the proper motions polygon mask to return only contained sources.
         """
@@ -91,7 +88,6 @@ class Isochrone:
         self.on_pmmask = on_mask
 
     def generate_isochrone(self):
-
         """
         load an isochrone, LF model for a given metallicity, age, distance
         """
@@ -144,7 +140,6 @@ class Isochrone:
         #            mmass_pdf
 
     def data_cmd(self, xbin, ybin, xrange=[-0.5, 1.0], yrange=[15, 22]):
-
         """
         Empirical CMD generated from the input catalogue.
 
@@ -211,7 +206,6 @@ class Isochrone:
         return cmd_poly, cmd_mask
 
     def correct_isochrone(self):
-
         """
         Correlate the 2D histograms from the data and the
         theoretical isochrone to find the shift in color
@@ -349,7 +343,6 @@ class Isochrone:
         return fig
 
     def convolve_1d(probabilities, mag_err):
-
         """
         1D Gaussian convolution.
 
@@ -370,7 +363,6 @@ class Isochrone:
         convolved.self = convolved
 
     def convolve_errors(self, g_errors, r_errors, intr_err=0.1):
-
         """
 
         1D Gaussian convolution of the data with uncertainities.
@@ -398,7 +390,6 @@ class Isochrone:
         self.probabilities = probabilities
 
     def errFn(self):
-
         """
         Generate the errors for the magnitudes?
         """
