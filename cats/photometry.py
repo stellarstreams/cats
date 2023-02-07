@@ -17,7 +17,6 @@ class PhotometricSurvey(abc.ABC):
     dustmaps_cls = SFDQuery
 
     def __init_subclass__(cls) -> None:
-
         if len(cls.band_names) == 0:
             raise ValueError(
                 "You must define some photometric band names in band_names for any "
