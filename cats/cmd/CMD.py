@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy
 from scipy.interpolate import interp1d
+from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.signal import correlate2d
 from ugali.analysis.isochrone import factory as isochrone_factory
 from astropy.coordinates import SkyCoord
@@ -62,6 +63,12 @@ class Isochrone:
         self.alpha = alpha
         
         self.pawprint = pawprint
+        track = self.pawprint.track.track.transform_to(self.pawprint.track.stream_frame)
+        
+#         spline_dist = InterpolatedUnivariateSpline(track.phi1.value, track.distance.value)
+#         self.dist_mod_correct = (5 * np.log10(spline_dist(self.cat["phi1"]) * 1000) - 5) - self.dist_mod
+        distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])
+        self.dist_mod_correct = distmod_spl(self.cat["phi1"]) - self.dist_mod
         
         self.x_shift = 0
         self.y_shift = 0
@@ -107,12 +114,15 @@ class Isochrone:
         """
         Initialising the on-sky polygon mask to return only contained sources.
         """
-        cat = self.cat
+        
         on_poly_patch = mpl.patches.Polygon(
-            self.pawprint.skyprint['stream'].vertices[::100], facecolor="none", edgecolor="k", linewidth=2
+            self.pawprint.skyprint['stream'].vertices[::50], facecolor="none", edgecolor="k", linewidth=2
         )
-        on_points = np.vstack((cat["phi1"], cat["phi2"])).T
+        on_points = np.vstack((self.cat["phi1"], self.cat["phi2"])).T
         on_mask = on_poly_patch.get_path().contains_points(on_points)
+        
+#         on_points = np.vstack((self.cat["phi1"], self.cat["phi2"])).T
+#         on_mask = self.pawprint.skyprint['stream'].inside_footprint(on_points) #very slow because skyprint is very large
 
         self.on_skymask = on_mask
 
@@ -122,12 +132,9 @@ class Isochrone:
         Initialising the proper motions polygon mask to return only contained sources.
         """
 
-        cat = self.cat
-        on_poly_patch = mpl.patches.Polygon(
-            self.pawprint.pmprint.vertices, facecolor="none", edgecolor="k", linewidth=2
-        )
-        on_points = np.vstack((cat["pm_phi1_cosphi2"], cat["pm_phi2"])).T
-        on_mask = on_poly_patch.get_path().contains_points(on_points)
+        on_points = np.vstack((self.cat["pm_phi1_cosphi2"], self.cat["pm_phi2"])).T
+        
+        on_mask = self.pawprint.pmprint.inside_footprint(on_points)
 
         self.on_pmmask = on_mask
 
@@ -203,7 +210,7 @@ class Isochrone:
 
         data, xedges, yedges = np.histogram2d(
             (tab["g0"] - tab["r0"])[self.on_pmmask & self.on_skymask],
-            (tab["g0"] - self.dist_grad*tab["phi1"])[self.on_pmmask & self.on_skymask],
+            (tab["g0"] - self.dist_mod_correct)[self.on_pmmask & self.on_skymask],
             bins=[x_bins, y_bins],
             density=True,
         )
@@ -241,16 +248,12 @@ class Isochrone:
                 np.flip(np.array([col_high_vals, mag_vals]).T, axis=0),
             ]
         )
-
-        # to create the boolean mask, don't know if we want this
-        cmd_poly_patch = mpl.patches.Polygon(
-            cmd_poly, facecolor="none", edgecolor="k", linewidth=2
-        )
+        cmd_footprint = Footprint2D(cmd_poly, footprint_type='cartesian')
         
-        cmd_points = np.vstack((self.cat[mag1] - self.cat[mag2], self.cat[mag1] - self.dist_grad*self.cat['phi1'])).T
-        cmd_mask = cmd_poly_patch.get_path().contains_points(cmd_points)
+        cmd_points = np.vstack((self.cat[mag1] - self.cat[mag2], self.cat[mag1] - self.dist_mod_correct)).T
+        cmd_mask = cmd_footprint.inside_footprint(cmd_points)
 
-        return cmd_poly, cmd_mask
+        return cmd_footprint, cmd_mask
 
     def correct_isochrone(self):
 
@@ -322,13 +325,14 @@ class Isochrone:
             mag1 + magoff, mag1 - mag2 + coloff, fill_value="extrapolate"
         )
 
-        cmd_poly, cmd_mask = self.make_poly(iso_low, iso_high, maxmag=24, minmag=14)
+        cmd_footprint, cmd_mask = self.make_poly(iso_low, iso_high, maxmag=24, minmag=14)
 
         #self.pawprint.cmd_filters = ... need to specify this since g vs g-r is a specific choice
-        self.pawprint.cmdprint = Footprint2D(cmd_poly, footprint_type='cartesian')
+        #self.pawprint.add_cmd_footprint(cmd_footprint, 'g_r', 'g', 'cmdprint')
+        self.pawprint.cmdprint = cmd_footprint
         #self.pawprint.save_pawprint(...)
         
-        return cmd_poly, cmd_mask, iso_model, iso_low, iso_high, self.pawprint
+        return cmd_footprint, cmd_mask, iso_model, iso_low, iso_high, self.pawprint
 
     def plot_CMD(self, tolerance):
         """

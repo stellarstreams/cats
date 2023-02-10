@@ -116,10 +116,24 @@ class Pawprint(dict):
             self.cmdprint = None
         if data["pm_vertices"] is not None:
             self.pmprint = Footprint2D(
-                data["pm_vertices"], footprint_type="sky"
+                data["pm_vertices"], footprint_type="cartesian"
             )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
         else:
             self.pmprint = None
+#         if data["pm1_vertices"] is not None:
+#             self.pm1print = Footprint2D(
+#                 data["pm1_vertices"], footprint_type="cartesian"
+#             )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
+#         else:
+#             self.pm1print = None
+            
+#         # Need to code this into CMD and proper motion stuff
+#         if data["pm2_vertices"] is not None:
+#             self.pm2print = Footprint2D(
+#                 data["pm2_vertices"], footprint_type="cartesian"
+#             )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
+#         else:
+#             self.pm2print = None
 
         self.track = data["track"]
 
@@ -240,7 +254,7 @@ class Pawprint(dict):
             track_file=track_file,
             summary_file=summary_file,
         )
-        data["width"] = 1.0 * u.deg
+        data["width"] = 2.0 * u.deg # This is very variable per stream, user should be encouraged to change it
         data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
             width=data["width"], phi2_offset=0.0 * u.deg
         )

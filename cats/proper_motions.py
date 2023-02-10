@@ -7,11 +7,17 @@
 # import packages
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 import galstreams
 import gala.coordinates as gc
 from scipy.spatial import ConvexHull
-import matplotlib as mpl
+from scipy.interpolate import InterpolatedUnivariateSpline
+
+import sys
+sys.path.append('/Users/Tavangar/CATS_workshop/cats/')
+from cats.pawprint.pawprint import Pawprint, Footprint2D
 
 
 # %%
@@ -25,12 +31,14 @@ import matplotlib as mpl
 
 
 class ProperMotionSelection:
-    def __init__(self, stream_obj, data,
+    def __init__(self, data,
                  pawprint,
                  #CMD_mask=True, 
                  #spatial_mask_on=True, 
                  #spatial_mask_off=True, 
-                 dist_grad = 0, #encode this into pawprint so it is not an input here
+                 distance = 8.3, #get this from pawprint in future so it is not an input here
+                 pm_phi1_grad = None, # think we should take this from pawprint, or at least make that the default
+                 pm_phi2_grad = None,
                  best_pm_phi1_mean = None,
                  best_pm_phi2_mean = None, 
                  best_pm_phi1_std = None,
@@ -57,33 +65,52 @@ class ProperMotionSelection:
         '''
         # stream_obj starting as galstream but then should be replaced by best values that we find
         
-        self.stream_obj = stream_obj
+        self.stream_obj = pawprint.track
         self.data = data
         self.pawprint = pawprint
-        self.dist_grad = dist_grad
-        self.sel_sky()
-        self.sel_cmd()
-        self.mask = self.spatial_mask_on & self.CMD_mask
-        self.off_mask = self.spatial_mask_off & self.CMD_mask
+        self.distance = distance
+        self.dist_mod = 5 * np.log10(self.distance * 1000) - 5
+        
         self.cutoff = cutoff
 
         assert(self.cutoff <= 1 and self.cutoff >= 0), "the value of self.cutoff put in does not make sense! It has to be between 0 and 1"
 
-        stream_fr = stream_obj.stream_frame
-        track = stream_obj.track.transform_to(stream_fr)
-        track_refl = gc.reflex_correct(track)
+        stream_fr = self.stream_obj.stream_frame
+        track = self.stream_obj.track.transform_to(stream_fr)
+        track_refl = gc.reflex_correct(track) 
         
         pm_phi1_cosphi2 = track_refl.pm_phi1_cosphi2.value
+        spline_pm1 = InterpolatedUnivariateSpline(track_refl.phi1.value, pm_phi1_cosphi2) #should add weights from errors???
         pm_phi2 = track_refl.pm_phi2.value
+        spline_pm2 = InterpolatedUnivariateSpline(track_refl.phi1.value, pm_phi2) # should add weights from errors?
+        
+#         spline_dist = InterpolatedUnivariateSpline(track_refl.phi1.value, track_refl.distance.value)
+#         self.dist_mod_correct = (5 * np.log10(spline_dist(self.data["phi1"]) * 1000) - 5) - self.dist_mod
+        distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])
+        self.dist_mod_correct = distmod_spl(self.data["phi1"]) - self.dist_mod
+        
+        
+        self.spatial_mask_on, self.spatial_mask_off = self.sel_sky()
+        self.CMD_mask = self.sel_cmd()
+        self.mask = self.spatial_mask_on & self.CMD_mask
+        self.off_mask = self.spatial_mask_off & self.CMD_mask
+        
+        
+        # Nondh and Bruno added
+        # from galstream
+        self.galstream_pm_phi1_cosphi2 = pm_phi1_cosphi2
+        self.galstream_pm_phi2 = pm_phi2
+        self.initial_pm_phi1_cosphi2_center = np.median(self.galstream_pm_phi1_cosphi2)
+        self.initial_pm_phi2_center = np.median(self.galstream_pm_phi2)
         
         if best_pm_phi1_mean == None:
             # TODO: generalize this later to percentile_values = [16, 50, 84]
 
-            self.best_pm_phi1_mean = np.mean(pm_phi1_cosphi2)
-            self.best_pm_phi2_mean = np.mean(pm_phi2)
+            self.best_pm_phi1_mean = spline_pm1(-40) # -40 specifically for GD-1 #np.mean(pm_phi1_cosphi2)
+            self.best_pm_phi2_mean = spline_pm2(-40)                             #np.mean(pm_phi2)
 
-            self.pm_phi1_std = np.std(pm_phi1_cosphi2)
-            self.pm_phi2_std = np.std(pm_phi2)
+            self.best_pm_phi1_std = np.std(pm_phi1_cosphi2) #doesn't seem physically motivated if there is gradient
+            self.best_pm_phi2_std = np.std(pm_phi2) #doesn't seem physically motivated if there is a gradient
 
         else:
             self.best_pm_phi1_mean = best_pm_phi1_mean
@@ -91,28 +118,82 @@ class ProperMotionSelection:
 
             self.best_pm_phi1_std = best_pm_phi1_std
             self.best_pm_phi2_std = best_pm_phi2_std
+            
+        self.pm_phi1_cosphi2 = self.data['pm_phi1_cosphi2'][self.mask]
+        self.pm_phi2 = self.data['pm_phi2'][self.mask]
 
+        print('Fitting for peak pm location')
+        # Uses default best_pm_phi_mean to generate improved ones
+        peak_locations = self.find_peak_location(self.data, x_width=3., y_width=3., draw_histograms=True)
+        print('Post-fitting (pm1_mean, pm2_mean, pm1_std, pm2_std): {} \n'.format(peak_locations))
+        
         print("Producing the initial mask")
-        self.pm_poly = self.build_mask(data, n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2, refine_factor = refine_factor)
+        self.pm_poly = self.build_poly(n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2, refine_factor = refine_factor)
         
-        pm_poly_patch = mpl.patches.Polygon(
-            self.pm_poly, facecolor="none", edgecolor="k", linewidth=2)
-        pm_points = np.vstack((data['pm_phi1_cosphi2'], data['pm_phi2'])).T
-        self.pm_mask = pm_poly_patch.get_path().contains_points(pm_points)
+        pm_points = np.vstack((self.data['pm_phi1_cosphi2'], self.data['pm_phi2'])).T
+        self.pawprint.pmprint = Footprint2D(self.pm_poly, footprint_type='cartesian')
+        self.pm_mask = self.pawprint.pmprint.inside_footprint(pm_points)
         
-        self.mask = self.pm_mask & self.mask
-
-        # Nondh and Bruno added
-        # from galstream
-        self.galstream_pm_phi1_cosphi2 = track_refl.pm_phi1_cosphi2.value
-        self.galstream_pm_phi2 = track_refl.pm_phi2.value
-        self.initial_pm_phi1_cosphi2_center = np.median(self.galstream_pm_phi1_cosphi2)
-        self.initial_pm_phi2_center = np.median(self.galstream_pm_phi2)
+        self.mask = self.pm_mask & self.spatial_mask_on & self.CMD_mask
         
         self.pm_phi1_cosphi2 = data['pm_phi1_cosphi2'][self.mask]
         self.pm_phi2 = data['pm_phi2'][self.mask]
+        
+        
+        # run it again:
+        
+        peak_locations2 = self.find_peak_location(self.data, x_width=3., y_width=3., draw_histograms=True)
+        print('Post-fitting (pm1_mean, pm2_mean, pm1_std, pm2_std): {} \n'.format(peak_locations))
+        # Assume this standard deviation is constant along stream and account for the changes in PM mean
+        #  Going to attempt to do the same trick as for the CMD where we move the data
+        
+        print("Producing the final initial mask")
+        self.pm_poly = self.build_poly( n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2, refine_factor = refine_factor)
+        
+        self.pawprint.pmprint = Footprint2D(self.pm_poly, footprint_type='cartesian')
+        self.pm_mask = self.pawprint.pmprint.inside_footprint(pm_points)
+        
+        self.mask = self.pm_mask & self.spatial_mask_on & self.CMD_mask
+        
+        self.pm_phi1_cosphi2 = data['pm_phi1_cosphi2'][self.mask]
+        self.pm_phi2 = data['pm_phi2'][self.mask]
+        
+        
+        self.plot_pms_scatter(self.data, mask=True, n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2)
+        self.plot_pm_hist(self.data, pms=[self.best_pm_phi1_mean, self.best_pm_phi2_mean])
+        
+        self.pm_mask = self.build_mask(self.data, spline_pm1, spline_pm2, self.pm_poly)
+        self.mask = self.pm_mask & self.spatial_mask_on & self.CMD_mask # don't use mask from before
+        
+        self.plot_pms_scatter(self.data, mask=True, n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2)
+        self.plot_pm_hist(self.data, pms=[self.best_pm_phi1_mean, self.best_pm_phi2_mean])
 
         return None
+    
+    def build_mask(self, data, spline_pm1, spline_pm2, pm_poly):
+        '''
+        This builds a mask (i.e. finds the data points satisfying pm constraints)
+        that does not use the peak fitting used elsewhere.
+        It relies on splines for pm_phi1_cosphi2 and pm_phi2 vs phi1 which must be given as inputs
+        Most of the time, these will naturally come from galstreams
+        '''
+        
+        pm1_data_corrected = data['pm_phi1_cosphi2'] - spline_pm1(data['phi1'])
+        pm2_data_corrected = data['pm_phi2'] - spline_pm2(data['phi1'])
+        
+        pm_vert_corrected = pm_poly - [self.best_pm_phi1_mean, self.best_pm_phi2_mean]
+        
+        pm_corrected_poly_patch = mpl.patches.Polygon(
+            pm_vert_corrected, facecolor="none", edgecolor="k", linewidth=2
+        )
+        
+        pm_points = np.vstack((pm1_data_corrected, pm2_data_corrected)).T
+        pm_mask = pm_corrected_poly_patch.get_path().contains_points(pm_points)
+        #self.pawprint.pmprint = Footprint2D(pm_vert_corrected, footprint_type='cartesian')
+        #self.pm_mask = self.pawprint.pmprint.inside_footprint(pm_points)
+        
+        return pm_mask
+    
     
     def sel_sky(self):
 
@@ -129,10 +210,9 @@ class ProperMotionSelection:
             self.pawprint.skyprint['background'].vertices[::100], facecolor="none", edgecolor="k", linewidth=2
         )
         off_points = np.vstack((self.data["phi1"], self.data["phi2"])).T
-        off_mask = on_poly_patch.get_path().contains_points(on_points)
+        off_mask = off_poly_patch.get_path().contains_points(off_points)
 
-        self.spatial_mask_on = on_mask
-        self.spatial_mask_off = off_mask
+        return on_mask, off_mask
 
     def sel_cmd(self):
 
@@ -141,13 +221,11 @@ class ProperMotionSelection:
         """
 
         mag1 = 'g0' ; mag2 = 'r0'
-        cmd_poly_patch = mpl.patches.Polygon(
-            self.pawprint.cmdprint.vertices, facecolor="none", edgecolor="k", linewidth=2)
         
-        cmd_points = np.vstack((self.data[mag1] - self.data[mag2], self.data[mag1] - self.dist_grad*self.data['phi1'])).T
-        cmd_mask = cmd_poly_patch.get_path().contains_points(cmd_points)
+        cmd_points = np.vstack((self.data[mag1] - self.data[mag2], self.data[mag1] - self.dist_mod_correct)).T
+        cmd_mask = self.pawprint.cmdprint.inside_footprint(cmd_points)
         
-        self.CMD_mask = cmd_mask
+        return cmd_mask
     
     @staticmethod
     def two_dimensional_gaussian(x, y, x0, y0, sigma_x, sigma_y):
@@ -157,10 +235,9 @@ class ProperMotionSelection:
 
         return np.exp(- ( (x-x0)**2/(2*sigma_x**2) + (y-y0)**2/(2*sigma_y**2) ) )
 
-    def build_mask(self, data, n_dispersion_phi1=1, n_dispersion_phi2=1, refine_factor = 100):
+    def build_poly(self, n_dispersion_phi1=1, n_dispersion_phi2=1, refine_factor = 100):
         """
         Builds the mask of the proper motion with n_dispersion around the mean
-        :param: data, the initial data file to get the peak of the pm
         :param: n_dispersion_phi1: float, default set to 1 standard deviation around phi_1
         :param: n_dispersion_phi2: float, default set to 1 standard deviation around phi_2
         :param: refine_factor: int, default set to 100, how smooth are the edges of the polygons
@@ -218,7 +295,7 @@ class ProperMotionSelection:
         ax[0].scatter(data_on['pm_phi1_cosphi2'], data_on['pm_phi2'], c='k', s=scatter_size, alpha=0.2, **kwargs)
 
         if mask:
-            vertices = self.build_mask(n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2, refine_factor = refine_factor)
+            vertices = self.build_poly(n_dispersion_phi1=n_dispersion_phi1, n_dispersion_phi2=n_dispersion_phi2, refine_factor = refine_factor)
 
             x,y= vertices.T
             x=np.append(x, x[0])
@@ -379,32 +456,35 @@ class ProperMotionSelection:
         from astropy.modeling import models, fitting
         	
         x_center, y_center = self.best_pm_phi1_mean, self.best_pm_phi2_mean
+        print('Pre-fitting mean PM values: {}, {}'.format(x_center, y_center))
         xmin, xmax, ymin, ymax = x_center-x_width, x_center+x_width, y_center-y_width, y_center+y_width
 		
         # on-stream data into 2D histogram
-        H1, x_edges, y_edges = np.histogram2d(self.pm_phi1_cosphi2, self.pm_phi2, bins = (np.arange(xmin, xmax, x_width/20),np.arange(ymin, ymax, y_width/20))) #explore differtent bin sizes
+        H1, x_edges, y_edges = np.histogram2d(self.pm_phi1_cosphi2, self.pm_phi2, bins = (np.arange(xmin, xmax, x_width/30),np.arange(ymin, ymax, y_width/30))) #explore differtent bin sizes
         
         stream_off = self.off_mask
         # off-stream data
         H2, x_edges, y_edges = np.histogram2d(data['pm_phi1_cosphi2'][stream_off], 
                                         data['pm_phi2'][stream_off], 
-                                             bins = (np.arange(xmin, xmax, x_width/20), np.arange(ymin, ymax, y_width/20)))
+                                             bins = (np.arange(xmin, xmax, x_width/30), np.arange(ymin, ymax, y_width/30)))
         
         
         hist = H1-self.mask.sum()/self.off_mask.sum()*H2 #check this scale factor --> self.mask.sum()/self.off_mask.sum()
+        #Do we want to do based on counts or based on area, since we do expect more counts on stream (but maybe negligible)
 
         # fitting 2D gaussian (Code from Ani)
         #Find overdensity
         ind = np.unravel_index(hist.argmax(), hist.shape)
         #Fit 2d gaussian to a zoomed in histogram
         hist_zoom = np.transpose(hist[(ind[0]-6):(ind[0]+7), (ind[1]-6):(ind[1]+7)])
-        g_init = models.Gaussian2D(amplitude=1., x_mean=x_edges[ind[0]], y_mean=y_edges[ind[1]], x_stddev = 0.5, y_stddev = 0.5)
+        g_init = models.Gaussian2D(amplitude=1., x_mean=x_edges[ind[0]], y_mean=y_edges[ind[1]], 
+                                   x_stddev = 0.5, y_stddev = 0.5)
         fit_g = fitting.LevMarLSQFitter()
         x,y = np.meshgrid(x_edges[(ind[0]-6):(ind[0]+7)], y_edges[(ind[1]-6):(ind[1]+7)])
         g = fit_g(g_init, x, y, hist_zoom)
 
         # the mean position of the peak
-        pm_x_cen = g.x_mean + 0.5*(x_edges[1]-x_edges[0])        # half with of the bin
+        pm_x_cen = g.x_mean + 0.5*(x_edges[1]-x_edges[0])        # half width of the bin
         pm_y_cen = g.y_mean + 0.5*(y_edges[1]-y_edges[0]) 
         # the std's of the peak
         x_std, y_std = g.x_stddev.value, g.y_stddev.value
