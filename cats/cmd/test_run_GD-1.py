@@ -17,8 +17,17 @@ def main() -> int:
 
     p = Pawprint.pawprint_from_galstreams('GD-1','pricewhelan2018')
 
-    pm_poly = [[-9, -2], [-9, 0.5], [-4, 1.5], [-4, -1]]
+    pm1_mean, pm2_mean, pm1_std, pm2_std = -7.4, -0.3, 0.29, 0.21
+#     pm_poly = [[-9, -2], [-9, 0.5], [-4, 1.5], [-4, -1]]
+    pm_poly = [[pm1_mean-2*pm1_std, pm2_mean-2*pm2_std],
+               [pm1_mean-2*pm1_std, pm2_mean+2*pm2_std],
+               [pm1_mean+2*pm1_std, pm2_mean+2*pm2_std],
+               [pm1_mean+2*pm1_std, pm2_mean-2*pm2_std]]
     p.pmprint = Footprint2D(pm_poly, footprint_type='cartesian')
+#     p.add_pm_footprint(
+#         Footprint2D(pm_poly, footprint_type='cartesian'),
+#         name='pm'
+#     )
 
 
     o = Isochrone(
@@ -44,7 +53,7 @@ def main() -> int:
         bbox_inches="tight",
     )
 
-    iso_patch, iso_mask, iso_model, iso_low, iso_high = o.simpleSln(
+    cmd_print, cmd_mask, iso_model, iso_low, iso_high, p_final = o.simpleSln(
         0.1, 15, mass_thresh=0.83
     )
     print(o.x_shift)

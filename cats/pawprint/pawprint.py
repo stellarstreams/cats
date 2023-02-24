@@ -120,20 +120,20 @@ class Pawprint(dict):
             )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
         else:
             self.pmprint = None
-#         if data["pm1_vertices"] is not None:
-#             self.pm1print = Footprint2D(
-#                 data["pm1_vertices"], footprint_type="cartesian"
-#             )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
-#         else:
-#             self.pm1print = None
+        if data["pm1_vertices"] is not None:
+            self.pm1print = Footprint2D(
+                data["pm1_vertices"], footprint_type="cartesian"
+            )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
+        else:
+            self.pm1print = None
             
-#         # Need to code this into CMD and proper motion stuff
-#         if data["pm2_vertices"] is not None:
-#             self.pm2print = Footprint2D(
-#                 data["pm2_vertices"], footprint_type="cartesian"
-#             )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
-#         else:
-#             self.pm2print = None
+        # Need to code this into CMD and proper motion stuff
+        if data["pm2_vertices"] is not None:
+            self.pm2print = Footprint2D(
+                data["pm2_vertices"], footprint_type="cartesian"
+            )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
+        else:
+            self.pm2print = None
 
         self.track = data["track"]
 
@@ -266,6 +266,9 @@ class Pawprint(dict):
         data["cmd_filters"] = None
         data["cmd_vertices"] = None
         data["pm_vertices"] = None
+        data["pm1_vertices"] = None
+        data["pm2_vertices"] = None
+        
 
         return cls(data)
 

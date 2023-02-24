@@ -73,6 +73,12 @@ class Isochrone:
         self.x_shift = 0
         self.y_shift = 0
         self.survey = "ps1"
+        
+        self.generate_isochrone()
+        self.sel_sky()
+        self.sel_pm()
+        if self.pawprint.pm1print is not None:
+            self.sel_pm12()
     
 #     def __init__(self, cat, age, feh, distance, dist_grad, alpha, sky_poly, pm_poly):
 
@@ -137,6 +143,22 @@ class Isochrone:
         on_mask = self.pawprint.pmprint.inside_footprint(on_points)
 
         self.on_pmmask = on_mask
+        
+    def sel_pm12(self):
+
+        """
+        Initialising the proper motions polygon mask to return only contained sources.
+        """
+
+        on_pm1_points = np.vstack((self.cat['phi1'], self.cat["pm_phi1_cosphi2"])).T
+        on_pm2_points = np.vstack((self.cat['phi1'], self.cat["pm_phi2"])).T
+        
+        on_pm1_mask = self.pawprint.pm1print.inside_footprint(on_pm1_points)
+        on_pm2_mask = self.pawprint.pm2print.inside_footprint(on_pm2_points)
+        
+        self.on_pm1mask = on_pm1_mask
+        self.on_pm2mask = on_pm2_mask
+        self.on_pm12mask = on_pm1_mask & on_pm2_mask
 
     def generate_isochrone(self):
 
@@ -294,7 +316,8 @@ class Isochrone:
         Select the stars that are within the CMD polygon cut
         --------------------------------
         Parameters:
-        - tolerance: half the "width" of the created CMD polygon
+        - tolerance: half the "width" of the created CMD polygon. 
+                     Currrently constant value because cat doesn't include mag errors
         - maxmag: faint limit of created CMD polygon, should be deeper than all data
         - mass_thresh: upper limit for the theoretical mass that dictates the bright limit of the
                        theoretical isochrone used for polygon
@@ -325,14 +348,14 @@ class Isochrone:
             mag1 + magoff, mag1 - mag2 + coloff, fill_value="extrapolate"
         )
 
-        cmd_footprint, cmd_mask = self.make_poly(iso_low, iso_high, maxmag=24, minmag=14)
+        cmd_footprint, self.cmd_mask = self.make_poly(iso_low, iso_high, maxmag=21, minmag=17.8)
 
         #self.pawprint.cmd_filters = ... need to specify this since g vs g-r is a specific choice
         #self.pawprint.add_cmd_footprint(cmd_footprint, 'g_r', 'g', 'cmdprint')
         self.pawprint.cmdprint = cmd_footprint
         #self.pawprint.save_pawprint(...)
         
-        return cmd_footprint, cmd_mask, iso_model, iso_low, iso_high, self.pawprint
+        return cmd_footprint, self.cmd_mask, iso_model, iso_low, iso_high, self.pawprint
 
     def plot_CMD(self, tolerance):
         """
@@ -341,7 +364,7 @@ class Isochrone:
 
         Returns matplotlib Figure.
         """
-        cat = self.cat[self.on_pmmask & self.on_skymask]
+        cat = self.cat[self.on_pm12mask & self.on_skymask]
         mag1 = self.mag1
         color = mag1 - self.mag2 + self.x_shift
         mag1 = mag1 + self.y_shift
@@ -397,7 +420,7 @@ class Isochrone:
 
         return fig
 
-    def convolve_1d(probabilities, mag_err):
+    def convolve_1d(self, probabilities, mag_err):
 
         """
         1D Gaussian convolution.
@@ -416,7 +439,7 @@ class Isochrone:
         kernel = Gaussian1DKernel(sigma)
         convolved = convolve(probabilities, kernel)
 
-        convolved.self = convolved
+        self.convolved = convolved
 
     def convolve_errors(self, g_errors, r_errors, intr_err=0.1):
 
