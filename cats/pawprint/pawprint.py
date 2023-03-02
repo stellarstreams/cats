@@ -184,7 +184,7 @@ class Pawprint(dict):
         return cls(data)
 
     @classmethod
-    def pawprint_from_galstreams(cls, stream_name, pawprint_ID):
+    def pawprint_from_galstreams(cls, stream_name, pawprint_ID, width):
 
         galstreams_dir = os.path.dirname(gst.__file__)
         galstreams_tracks = os.path.join(galstreams_dir, "tracks/")
@@ -254,7 +254,7 @@ class Pawprint(dict):
             track_file=track_file,
             summary_file=summary_file,
         )
-        data["width"] = 2.0 * u.deg # This is very variable per stream, user should be encouraged to change it
+        data["width"] = width # This is very variable per stream, user should be encouraged to change it
         data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
             width=data["width"], phi2_offset=0.0 * u.deg
         )

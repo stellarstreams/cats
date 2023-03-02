@@ -17,6 +17,7 @@ from astropy.coordinates import SkyCoord
 import sys
 sys.path.append('/Users/Tavangar/CATS_workshop/cats/')
 from cats.pawprint.pawprint import Pawprint, Footprint2D
+from cats.inputs import stream_inputs as inputs
 
 plt.rc(
     "xtick",
@@ -37,7 +38,7 @@ plt.rc(
 
 
 class Isochrone:
-    def __init__(self, cat, age, feh, distance, dist_grad, alpha, pawprint):
+    def __init__(self, stream, cat, pawprint):
         """
         Defining variables loaded into class.
 
@@ -48,37 +49,47 @@ class Isochrone:
         age = Input age of stream from galstreams and/or literature.
         feh = Input metallicity from galstreams and/or literature.
         distance = Input distance from galstreams and/or literature.
-        dist_grad = Input distance_gradient from galstreams and/or literature in magnitudes/deg
         alpha = alpha/Fe
         pawprint = Stream multidimensional footprint
         """
         # Maybe include distance track?
         # Pull survey from catalog?
+        self.stream=stream
         self.cat = cat
-        self.age = age
-        self.feh = feh
-        self.distance = distance
-        self.dist_mod = 5 * np.log10(self.distance * 1000) - 5
-        self.dist_grad = dist_grad
-        self.alpha = alpha
+        self.age=inputs[stream]['age']
+        self.feh=inputs[stream]['feh']
+        self.distance=inputs[stream]['distance']  # kpc
+        self.alpha=inputs[stream]['alpha']
+        self.dist_mod = 5 * np.log10(1000*self.distance) - 5
         
         self.pawprint = pawprint
         track = self.pawprint.track.track.transform_to(self.pawprint.track.stream_frame)
         
-#         spline_dist = InterpolatedUnivariateSpline(track.phi1.value, track.distance.value)
-#         self.dist_mod_correct = (5 * np.log10(spline_dist(self.cat["phi1"]) * 1000) - 5) - self.dist_mod
-        distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])
-        self.dist_mod_correct = distmod_spl(self.cat["phi1"]) - self.dist_mod
+        if self.stream == 'GD-1':
+            distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])
+            self.dist_mod_correct = distmod_spl(self.cat["phi1"]) - self.dist_mod
+        else:
+            spline_dist = InterpolatedUnivariateSpline(track.phi1.value, track.distance.value)
+            self.dist_mod_correct = (5 * np.log10(spline_dist(self.cat["phi1"]) * 1000) - 5) - self.dist_mod
+        
+        
         
         self.x_shift = 0
         self.y_shift = 0
-        self.survey = "ps1"
+        self.survey = inputs[self.stream]['survey']
+        self.band1 = inputs[self.stream]['band1']
+        self.band2 = inputs[self.stream]['band2']
+        self.data_mag1 = inputs[self.stream]['mag1']
+        self.data_mag2 = inputs[self.stream]['mag2']
         
         self.generate_isochrone()
         self.sel_sky()
         self.sel_pm()
         if self.pawprint.pm1print is not None:
             self.sel_pm12()
+            
+        self.data_cmd()
+        self.correct_isochrone()
     
 #     def __init__(self, cat, age, feh, distance, dist_grad, alpha, sky_poly, pm_poly):
 
@@ -178,8 +189,8 @@ class Isochrone:
             age=self.age,
             distance_modulus=self.dist_mod,
             z=z,
-            band_1="g",
-            band_2="r",
+            band_1=self.band1,
+            band_2=self.band2,
         )
 
         iso.afe = self.alpha
@@ -213,7 +224,7 @@ class Isochrone:
         # return iso, initial_mass, mass_pdf, actual_mass, mag_1, mag_2, mmag_1, mmag_2, \
         #            mmass_pdf
 
-    def data_cmd(self, xbin, ybin, xrange=[-0.5, 1.0], yrange=[15, 22]):
+    def data_cmd(self, xrange=[-0.5, 1.0], yrange=[15, 22]):
 
         """
         Empirical CMD generated from the input catalogue, with distance gradient accounted for.
@@ -221,62 +232,32 @@ class Isochrone:
         ------------------------------------------------------------------
 
         Parameters:
-        xbin: Bin size for color.
-        ybin: Bin size for magnitudes.
         xrange: Set the range of color values. Default is [-0.5, 1.0].
         yrange: Set the range of magnitude values. Default is [15, 22].
         """
         tab = self.cat
-        x_bins = np.arange(xrange[0], xrange[1], xbin)  # Used 0.03 for Jhelum
-        y_bins = np.arange(yrange[0], yrange[1], ybin)  # Used 0.2 for Jhelum
+        x_bins = np.arange(xrange[0], xrange[1], inputs[self.stream]['bin_sizes'][0])  # Used 0.03 for Jhelum
+        y_bins = np.arange(yrange[0], yrange[1], inputs[self.stream]['bin_sizes'][1])  # Used 0.2 for Jhelum
 
-        data, xedges, yedges = np.histogram2d(
-            (tab["g0"] - tab["r0"])[self.on_pmmask & self.on_skymask],
-            (tab["g0"] - self.dist_mod_correct)[self.on_pmmask & self.on_skymask],
-            bins=[x_bins, y_bins],
-            density=True,
-        )
+        if self.pawprint.pm1print is not None:
+            data, xedges, yedges = np.histogram2d(
+                (tab[self.data_mag1] - tab[self.data_mag2])[self.on_pm12mask & self.on_skymask],
+                (tab[self.data_mag1] - self.dist_mod_correct)[self.on_pm12mask & self.on_skymask],
+                bins=[x_bins, y_bins],
+                density=True,
+            )
+        else:
+            data, xedges, yedges = np.histogram2d(
+                (tab[self.data_mag1] - tab[self.data_mag2])[self.on_pmmask & self.on_skymask],
+                (tab[self.data_mag1] - self.dist_mod_correct)[self.on_pmmask & self.on_skymask],
+                bins=[x_bins, y_bins],
+                density=True,
+            )
 
         self.x_edges = xedges
         self.y_edges = yedges
         self.CMD_data = data.T
-
-    def make_poly(self, iso_low, iso_high, maxmag=26, minmag=14):
-        """
-        Generate the CMD polygon mask.
-
-        ------------------------------------------------------------------
-
-        Parameters:
-        iso_low: spline function describing the "left" bound of the theorietical isochrone
-        iso_high: spline function describing the "right" bound of the theoretical isochrone
-        maxmag: faint limit of theoretical isochrone, should be deeper than all data
-        minmag: bright limit of theoretical isochrone, either include just MS and subgiant branch or whole isochrone
-
-        Returns:
-        cmd_poly: Polygon vertices in CMD space.
-        cmd_mask: Boolean mask in CMD sapce.
-
-        """
-
-        mag1, mag2 = "g0", "r0"
-        mag_vals = np.arange(minmag, maxmag, 0.01)
-        col_low_vals = iso_low(mag_vals)
-        col_high_vals = iso_high(mag_vals)
-
-        cmd_poly = np.concatenate(
-            [
-                np.array([col_low_vals, mag_vals]).T,
-                np.flip(np.array([col_high_vals, mag_vals]).T, axis=0),
-            ]
-        )
-        cmd_footprint = Footprint2D(cmd_poly, footprint_type='cartesian')
         
-        cmd_points = np.vstack((self.cat[mag1] - self.cat[mag2], self.cat[mag1] - self.dist_mod_correct)).T
-        cmd_mask = cmd_footprint.inside_footprint(cmd_points)
-
-        return cmd_footprint, cmd_mask
-
     def correct_isochrone(self):
 
         """
@@ -306,18 +287,59 @@ class Isochrone:
         self.x_shift = (x - len(ccor2d[0]) / 2.0) * (self.x_edges[1] - self.x_edges[0])
         self.y_shift = (y - len(ccor2d) / 2.0) * (self.y_edges[1] - self.y_edges[0])
 
-    def simpleSln(
-        self,
-        tolerance,
-        maxmag,
-        mass_thresh=0.80,
-    ):
+    def make_poly(self, iso_low, iso_high, maxmag=26, minmag=14):
+        """
+        Generate the CMD polygon mask.
+
+        ------------------------------------------------------------------
+
+        Parameters:
+        iso_low: spline function describing the "left" bound of the theorietical isochrone
+        iso_high: spline function describing the "right" bound of the theoretical isochrone
+        maxmag: faint limit of theoretical isochrone, should be deeper than all data
+        minmag: bright limit of theoretical isochrone, either include just MS and subgiant branch or whole isochrone
+
+        Returns:
+        cmd_poly: Polygon vertices in CMD space.
+        cmd_mask: Boolean mask in CMD sapce.
+
+        """
+
+        mag_vals = np.arange(minmag, maxmag, 0.01)
+        col_low_vals = iso_low(mag_vals)
+        col_high_vals = iso_high(mag_vals)
+
+        cmd_poly = np.concatenate(
+            [
+                np.array([col_low_vals, mag_vals]).T,
+                np.flip(np.array([col_high_vals, mag_vals]).T, axis=0),
+            ]
+        )
+        cmd_footprint = Footprint2D(cmd_poly, footprint_type='cartesian')
+        
+        cmd_points = np.vstack((self.cat[self.data_mag1] - self.cat[self.data_mag2], 
+                                self.cat[self.data_mag1] - self.dist_mod_correct)).T
+        cmd_mask = cmd_footprint.inside_footprint(cmd_points)
+
+        return cmd_footprint, cmd_mask
+
+    
+    def get_tolerance(self, scale_err=1, base_tol=0.075):
+        # Convolving errors to create wider selections near mag limit
+        # Code written by Nora Shipp and adapted by Kiyan Tavangar
+        if self.survey == 'PS1':
+            err=lambda x: 0.00363355415 + np.exp((x - 23.9127145) / 1.09685211)
+        elif self.survey == 'DES_DR2':
+            # from DES_DR1 in Nora's code
+            err=lambda x: 0.0010908679647672335 + np.exp((x - 27.091072029215375) / 1.0904624484538419)
+        
+        return scale_err*err(self.mag1) + base_tol
+    
+    def simpleSln(self, maxmag=22, scale_err=2, mass_thresh=0.80):
         """
         Select the stars that are within the CMD polygon cut
         --------------------------------
         Parameters:
-        - tolerance: half the "width" of the created CMD polygon. 
-                     Currrently constant value because cat doesn't include mag errors
         - maxmag: faint limit of created CMD polygon, should be deeper than all data
         - mass_thresh: upper limit for the theoretical mass that dictates the bright limit of the
                        theoretical isochrone used for polygon
@@ -337,18 +359,20 @@ class Isochrone:
         ind = self.masses < mass_thresh
         mag1 = self.mag1[ind]
         mag2 = self.mag2[ind]
+        
+        tol = self.get_tolerance(scale_err)[ind]
 
         iso_low = interp1d(
-            mag1 + magoff, mag1 - mag2 + coloff - tolerance, fill_value="extrapolate"
+            mag1 + magoff, mag1 - mag2 + coloff - tol, fill_value="extrapolate"
         )
         iso_high = interp1d(
-            mag1 + magoff, mag1 - mag2 + coloff + tolerance, fill_value="extrapolate"
+            mag1 + magoff, mag1 - mag2 + coloff + tol, fill_value="extrapolate"
         )
         iso_model = interp1d(
             mag1 + magoff, mag1 - mag2 + coloff, fill_value="extrapolate"
         )
 
-        cmd_footprint, self.cmd_mask = self.make_poly(iso_low, iso_high, maxmag=21, minmag=17.8)
+        cmd_footprint, self.cmd_mask = self.make_poly(iso_low, iso_high, maxmag, minmag=17.8)
 
         #self.pawprint.cmd_filters = ... need to specify this since g vs g-r is a specific choice
         #self.pawprint.add_cmd_footprint(cmd_footprint, 'g_r', 'g', 'cmdprint')
@@ -357,28 +381,31 @@ class Isochrone:
         
         return cmd_footprint, self.cmd_mask, iso_model, iso_low, iso_high, self.pawprint
 
-    def plot_CMD(self, tolerance):
+    def plot_CMD(self, scale_err=2):
         """
         Plot the shifted isochrone over a 2D histogram of the polygon-selected
         data.
 
         Returns matplotlib Figure.
         """
-        cat = self.cat[self.on_pm12mask & self.on_skymask]
+        if self.pawprint.pm1print is not None:
+            cat = self.cat[self.on_pm12mask & self.on_skymask]
+            #cat = self.cat[self.on_pm12mask]
+        else:
+            cat = self.cat[self.on_pmmask & self.on_skymask]
+            #cat = self.cat[self.on_pmmask]
         mag1 = self.mag1
         color = mag1 - self.mag2 + self.x_shift
         mag1 = mag1 + self.y_shift
         mass_pdf = self.masses
-        band1 = "g"
-        band2 = "r"
         bins = (np.linspace(-0.5, 1.5, 128), np.linspace(10, 22.5, 128))
 
         fig = plt.figure(figsize=(8, 8))
         ax = fig.add_subplot(111)
 
         ax.hist2d(
-            cat["g0"] - cat["r0"],
-            cat["g0"],
+            cat[self.data_mag1] - cat[self.data_mag2],
+            cat[self.data_mag1],
             bins=bins,
             norm=mpl.colors.LogNorm(),
             zorder=5,
@@ -392,14 +419,14 @@ class Isochrone:
         )
 
         ax.plot(
-            color - tolerance,
+            color - self.get_tolerance(scale_err),
             mag1,
             color="b",
             ls="--",
             zorder=10,
         )
         ax.plot(
-            color + tolerance,
+            color + self.get_tolerance(scale_err),
             mag1,
             color="b",
             ls="--",
@@ -407,18 +434,21 @@ class Isochrone:
         )
 
         ax.set_xlabel(
-            f"{band1}-{band2}",
+            f"{self.band1}-{self.band2}",
             fontsize=20,
         )
         ax.set_ylabel(
-            f"{band1}",
+            f"{self.band1}",
             fontsize=20,
         )
 
-        ax.set_ylim(21.7, 15)
-        ax.set_xlim(-0.5, 1.0)
+        ax.set_ylim(21, 15)
+        ax.set_xlim(-0.5, 1.5)
 
         return fig
+    
+    
+        
 
     def convolve_1d(self, probabilities, mag_err):
 

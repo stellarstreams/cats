@@ -18,6 +18,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 import sys
 sys.path.append('/Users/Tavangar/CATS_workshop/cats/')
 from cats.pawprint.pawprint import Pawprint, Footprint2D
+from cats.inputs import stream_inputs as inputs
 
 
 # %%
@@ -30,15 +31,44 @@ from cats.pawprint.pawprint import Pawprint, Footprint2D
 # define our mask
 
 
+def rough_pm_poly(pawprint, buffer=2):
+    '''
+    Will return a polygon with a rough cut in proper motion space.
+    This aims to be ~100% complete with no thoughts about purity.
+    The goal is to use this cut in conjunction with the cmd cut in order
+    to see the stream as a clear overdensity in (phi_1, phi_2), which will 
+    allow membership probability modeling
+    '''
+    stream_fr = pawprint.track.stream_frame
+    track = pawprint.track.track.transform_to(stream_fr)
+    track_refl = gc.reflex_correct(track) 
+
+    # use the galstream proper motion track
+    track_pm1_min = np.min(track_refl.pm_phi1_cosphi2.value)
+    track_pm1_max = np.max(track_refl.pm_phi1_cosphi2.value)
+    track_pm2_min = np.min(track_refl.pm_phi2.value)
+    track_pm2_max = np.max(track_refl.pm_phi2.value)
+
+    # make rectangular box around this region with an extra 2 mas/yr on each side
+    rough_pm_poly = np.array([[track_pm1_min - buffer, track_pm2_min - buffer],
+                               [track_pm1_min - buffer, track_pm2_max + buffer],
+                               [track_pm1_max + buffer, track_pm2_max + buffer],
+                               [track_pm1_max + buffer, track_pm2_min - buffer]])
+
+    pawprint.pmprint = Footprint2D(rough_pm_poly, footprint_type='cartesian')
+
+    return pawprint.pmprint
+
+
 class ProperMotionSelection:
-    def __init__(self, data,
+    def __init__(self, stream,
+                 data,
                  pawprint,
-                 #CMD_mask=True, 
-                 #spatial_mask_on=True, 
-                 #spatial_mask_off=True, 
-                 distance = 8.3, #get this from pawprint in future so it is not an input here
-                 pm_phi1_grad = None, # think we should take this from pawprint, or at least make that the default
-                 pm_phi2_grad = None,
+#                  CMD_mask=True, 
+#                  spatial_mask_on=True, 
+#                  spatial_mask_off=True, 
+#                  pm_phi1_grad = None, # think we should take this from pawprint, or at least make that the default
+#                  pm_phi2_grad = None,
                  best_pm_phi1_mean = None,
                  best_pm_phi2_mean = None, 
                  best_pm_phi1_std = None,
@@ -65,11 +95,11 @@ class ProperMotionSelection:
         '''
         
         # stream_obj starting as galstream but then should be replaced by best values that we find
-        
+        self.stream = stream
         self.stream_obj = pawprint.track
         self.data = data
         self.pawprint = pawprint
-        self.distance = distance
+        self.distance = inputs[stream]['distance']
         self.dist_mod = 5 * np.log10(self.distance * 1000) - 5
         
         self.cutoff = cutoff
@@ -78,7 +108,7 @@ class ProperMotionSelection:
 
         
         # Get tracks from galstreams with splines
-        spline_phi2, spline_pm1, spline_pm2 = self.from_galstreams()
+        spline_phi2, spline_pm1, spline_pm2, spline_dist = self.from_galstreams()
         
         ####################################
         ## Make a rough proper motion cut ##
@@ -89,10 +119,15 @@ class ProperMotionSelection:
         ##################################
         ## Different proper motion cuts ##
         ##################################
+        if self.stream == 'GD-1':
+            #distance spline will instead be a distance modulus spline
+            self.dist_mod_correct = spline_dist(self.data["phi1"]) - self.dist_mod
+        else:
+            self.dist_mod_correct = (5 * np.log10(spline_dist(self.data["phi1"]) * 1000) - 5) - self.dist_mod
         
-#         self.dist_mod_correct = (5 * np.log10(spline_dist(self.data["phi1"]) * 1000) - 5) - self.dist_mod
-        distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])
-        self.dist_mod_correct = distmod_spl(self.data["phi1"]) - self.dist_mod
+        ## for GD-1 specifically:
+        #distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])
+        #self.dist_mod_correct = distmod_spl(self.cat["phi1"]) - self.dist_mod
         
         self.initial_masks()
         self.pm_phi1_cosphi2 = self.data['pm_phi1_cosphi2'][self.mask]
@@ -147,10 +182,10 @@ class ProperMotionSelection:
         
         
         # Plot the ellipse-like cut
-        self.plot_pms_scatter(self.data, mask=True, 
-                              n_dispersion_phi1=n_dispersion_phi1, 
-                              n_dispersion_phi2=n_dispersion_phi2)
-        self.plot_pm_hist(self.data, pms=[self.best_pm_phi1_mean, self.best_pm_phi2_mean])
+#         self.plot_pms_scatter(self.data, mask=True, 
+#                               n_dispersion_phi1=n_dispersion_phi1, 
+#                               n_dispersion_phi2=n_dispersion_phi2)
+#         self.plot_pm_hist(self.data, pms=[self.best_pm_phi1_mean, self.best_pm_phi2_mean])
         
         
         ######################################################
@@ -195,14 +230,19 @@ class ProperMotionSelection:
         self.galstream_phi2 = track_refl.phi2.value
         self.galstream_pm_phi1_cosphi2 = track_refl.pm_phi1_cosphi2.value
         self.galstream_pm_phi2 = track_refl.pm_phi2.value
+        self.galstream_dist = track_refl.distance.value
         
         # Making splines to tracks: should add weights from errors???
         spline_phi2 = IUS(self.galstream_phi1, self.galstream_phi2) 
         spline_pm1 = IUS(self.galstream_phi1, self.galstream_pm_phi1_cosphi2) 
         spline_pm2 = IUS(self.galstream_phi1, self.galstream_pm_phi2)
+        if self.stream == 'GD-1':
+            spline_dist = np.poly1d([2.41e-4, 2.421e-2, 15.001])
+        else:
+            spline_dist = IUS(self.galstream_phi1, self.galstream_dist)
 #         spline_dist = IUS(track_refl.phi1.value, track_refl.distance.value)
 
-        return spline_phi2, spline_pm1, spline_pm2 #, spline_dist
+        return spline_phi2, spline_pm1, spline_pm2, spline_dist
     
     def sel_sky(self):
 
@@ -229,7 +269,7 @@ class ProperMotionSelection:
         Initialising the proper motions polygon mask to return only contained sources.
         """
 
-        mag1 = 'g0' ; mag2 = 'r0'
+        mag1 = inputs[self.stream]['mag1'] ; mag2 =  inputs[self.stream]['mag2']
         
         cmd_points = np.vstack((self.data[mag1] - self.data[mag2], self.data[mag1] - self.dist_mod_correct)).T
         cmd_mask = self.pawprint.cmdprint.inside_footprint(cmd_points)
@@ -281,7 +321,7 @@ class ProperMotionSelection:
         return np.exp(- ( (x-x0)**2/(2*sigma_x**2) + (y-y0)**2/(2*sigma_y**2) ) )
 
     
-    def build_poly_and_mask(self, n_dispersion_phi1=1, n_dispersion_phi2=1, refine_factor = 100):
+    def build_poly_and_mask(self, n_dispersion_phi1=3, n_dispersion_phi2=3, refine_factor = 100):
         """
         Builds the mask of the proper motion with n_dispersion around the mean
         :param: n_dispersion_phi1: float, default set to 1 standard deviation around phi_1
