@@ -127,7 +127,6 @@ class Isochrone:
 #         self.survey = "ps1"
 
     def sel_sky(self):
-
         """
         Initialising the on-sky polygon mask to return only contained sources.
         """

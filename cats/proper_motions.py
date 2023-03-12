@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-@author: Sophia, Nora, Nondh, Lina, Bruno
+@author: Sophia, Nora, Nondh, Lina, Bruno, Kiyan
 """
 #%%
 # import packages
@@ -129,6 +129,7 @@ class ProperMotionSelection:
         #distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])
         #self.dist_mod_correct = distmod_spl(self.cat["phi1"]) - self.dist_mod
         
+        # SHOULD THE CMD CUT ALSO MAKE AN OFFSTREAM MASK? MAY BE USEFUL TO MAKE CUTS FOR SOME STREAMS
         self.initial_masks()
         self.pm_phi1_cosphi2 = self.data['pm_phi1_cosphi2'][self.mask]
         self.pm_phi2 = self.data['pm_phi2'][self.mask]
@@ -372,7 +373,7 @@ class ProperMotionSelection:
     
     def build_pm12_polys_and_masks(self):
         '''
-        This assumes that galstreams is correct, which is not a great assumption but will work for now.
+        This assumes that galstreams is correct, which is maybe not a great assumption but will work for now.
         '''
         self.pm1_poly = np.concatenate(
                 [np.array([self.galstream_phi1[::50], 
