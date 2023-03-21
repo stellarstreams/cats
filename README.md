@@ -70,3 +70,10 @@ The process will automatically make the following polygons to achieve these two 
     - Make an initial guess at the mean proper motion (either an input or taken to be proper motion in middle of stream)
     - Use this guess to fit for the mean and standard deviation in each proper motion coordinate. This uses the residual pm histogram between the on-stream and off-stream regions.
     - Take the galstreams tracks in each pm coordinate and create a polygon with half-width equal to the fitted standard deviation.
+    
+Notes: 
+1. There is currently an issue when trying to use g vs g-i rather than g vs g-r for Pal 5. Not sure where this is coming from, I'll try to look into it but would appreciate any ideas.
+2. In general, I think it's probably possible to do better with Pal 5 but I was trying to do this in as non-specific a way as possible.
+3. I've not added footprints in the way that it was originally designed. I couldn't figure out the add_new_footprint functions especially for the CMD footprints. So I am just updating the pawprint by saying `pawprint.cmdprint = new_cmdprint` (as opposed to `pawprint.add_new_cmdprint(new_cmd_print,...)` as originally designed. This can probably be easily updated by someone who originally helped write the pawprint functions.
+4. I have only updated parts of the package that are related to the output that I was attempting to generate.
+5. I can definitely improve the legibility of the code to make it more understandable. I will work on that next.
