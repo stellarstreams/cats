@@ -6,6 +6,7 @@ Created on Wed Nov  2 11:22:24 2022
 @author: Ani, Kiyan, Richard
 """
 import matplotlib as mpl
+from matplotlib.patches import PathPatch
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
@@ -81,6 +82,7 @@ class Isochrone:
         self.band2 = inputs[self.stream]['band2']
         self.data_mag1 = inputs[self.stream]['mag1']
         self.data_mag2 = inputs[self.stream]['mag2']
+        self.turnoff = inputs[self.stream]['turnoff']
         
         self.generate_isochrone()
         self.sel_sky()
@@ -89,7 +91,10 @@ class Isochrone:
             self.sel_pm12()
             
         self.data_cmd()
-        self.correct_isochrone()
+        if self.pawprint.pm1print is not None:
+            # Only shift isochrone is the previous cuts are clean enough
+            #  Otherwise it will just shift to the background
+            self.correct_isochrone()
     
 #     def __init__(self, cat, age, feh, distance, dist_grad, alpha, sky_poly, pm_poly):
 
@@ -324,13 +329,17 @@ class Isochrone:
 
     
     def get_tolerance(self, scale_err=1, base_tol=0.075):
-        # Convolving errors to create wider selections near mag limit
-        # Code written by Nora Shipp and adapted by Kiyan Tavangar
+        '''
+        Convolving errors to create wider selections near mag limit
+        Code written by Nora Shipp and adapted by Kiyan Tavangar
+        '''
         if self.survey == 'PS1':
             err=lambda x: 0.00363355415 + np.exp((x - 23.9127145) / 1.09685211)
         elif self.survey == 'DES_DR2':
-            # from DES_DR1 in Nora's code
+            # from DES_DR1 in Nora's code (I think should apply here as well)
             err=lambda x: 0.0010908679647672335 + np.exp((x - 27.091072029215375) / 1.0904624484538419)
+        else:
+            err=lambda x: 0*x
         
         return scale_err*err(self.mag1) + base_tol
     
@@ -371,7 +380,7 @@ class Isochrone:
             mag1 + magoff, mag1 - mag2 + coloff, fill_value="extrapolate"
         )
 
-        cmd_footprint, self.cmd_mask = self.make_poly(iso_low, iso_high, maxmag, minmag=17.8)
+        cmd_footprint, self.cmd_mask = self.make_poly(iso_low, iso_high, maxmag, minmag=self.turnoff)
 
         #self.pawprint.cmd_filters = ... need to specify this since g vs g-r is a specific choice
         #self.pawprint.add_cmd_footprint(cmd_footprint, 'g_r', 'g', 'cmdprint')
@@ -386,6 +395,8 @@ class Isochrone:
         data.
 
         Returns matplotlib Figure.
+        
+        WANT TO PLOT THE ACTUAL POLYGON USED AS WELL
         """
         if self.pawprint.pm1print is not None:
             cat = self.cat[self.on_pm12mask & self.on_skymask]
@@ -431,6 +442,11 @@ class Isochrone:
             ls="--",
             zorder=10,
         )
+        
+        patch = PathPatch(self.pawprint.cmdprint.footprint, 
+                          facecolor='none', edgecolor='red', 
+                          linewidth=3, zorder=10)
+        ax.add_patch(patch)
 
         ax.set_xlabel(
             f"{self.band1}-{self.band2}",

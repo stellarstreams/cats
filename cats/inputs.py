@@ -8,7 +8,7 @@ stream_inputs = odict([
          short_name='GD-1',
          pawprint_id='pricewhelan2018',
          #stream stuff
-         width=2.0, # degrees (add units in pawprint)
+         width=2.0, # full width in degrees (add units in pawprint)
          #data stuff
          survey='PS1',
          band1='g',
@@ -21,6 +21,7 @@ stream_inputs = odict([
          age=11.8, # Gyr
          feh=-1.5, 
          distance=8.3, #kpc
+         turnoff=17.8, # mag of MS turnoff
          alpha=0, #don't think we actually use this
          scale_err=2,
          base_err=0.075,
@@ -36,15 +37,16 @@ stream_inputs = odict([
          #data stuff
          survey='PS1',
          band1='g',
-         band2='i',
+         band2='r',
          mag1='g0',
-         mag2='i0',
+         mag2='r0',
          minmag=16.,
          maxmag=24.0,
          #isochrone stuff
          age=12, # Gyr
          feh=-1.4, 
          distance=20.9, #kpc
+         turnoff=15, # mag of MS turnoff
          alpha=0, #don't think we actually use this
          scale_err=2,
          base_err=0.075,
@@ -65,9 +67,10 @@ stream_inputs = odict([
          minmag=16.,
          maxmag=24.0,
          #isochrone stuff
-         age=11, # Gyr
-         feh=-1.5, 
+         age=12, # Gyr
+         feh=-1.7, 
          distance=13.2, #kpc
+         turnoff=18.7, # mag of MS turnoff
          alpha=0, #don't think we actually use this
          scale_err=2,
          base_err=0.075,
