@@ -59,7 +59,7 @@ stream_inputs = odict([
          #stream stuff
          width=2.0, # degrees (add units in pawprint)
          #data stuff
-         survey='PS1',
+         survey='des',
          band1='g',
          band2='r',
          mag1='g0',

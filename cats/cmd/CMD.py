@@ -243,6 +243,7 @@ class Isochrone:
         x_bins = np.arange(xrange[0], xrange[1], inputs[self.stream]['bin_sizes'][0])  # Used 0.03 for Jhelum
         y_bins = np.arange(yrange[0], yrange[1], inputs[self.stream]['bin_sizes'][1])  # Used 0.2 for Jhelum
 
+        # if this is the second runthrough and a proper motion mask already exists, use that instead of the rough one
         if self.pawprint.pm1print is not None:
             data, xedges, yedges = np.histogram2d(
                 (tab[self.data_mag1] - tab[self.data_mag2])[self.on_pm12mask & self.on_skymask],
