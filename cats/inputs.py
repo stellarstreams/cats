@@ -10,11 +10,12 @@ stream_inputs = odict([
          #stream stuff
          width=2.0, # full width in degrees (add units in pawprint)
          #data stuff
-         survey='PS1',
+         phot_survey='PS1',
          band1='g',
          band2='r',
-         mag1='g0',
-         mag2='r0',
+         mag='g0',
+         color1='g0',
+         color2='r0',
          minmag=16.,
          maxmag=24.0,
          #isochrone stuff
@@ -35,11 +36,12 @@ stream_inputs = odict([
          #stream stuff
          width=1.0, # degrees (add units in pawprint)
          #data stuff
-         survey='PS1',
+         phot_survey='PS1',
          band1='g',
          band2='r',
-         mag1='g0',
-         mag2='r0',
+         mag='g0',
+         color1='g0',
+         color2='r0',
          minmag=16.,
          maxmag=24.0,
          #isochrone stuff
@@ -59,11 +61,12 @@ stream_inputs = odict([
          #stream stuff
          width=2.0, # degrees (add units in pawprint)
          #data stuff
-         survey='des',
+         phot_survey='des',
          band1='g',
          band2='r',
-         mag1='g0',
-         mag2='r0',
+         mag='g0',
+         color1='g0',
+         color2='r0',
          minmag=16.,
          maxmag=24.0,
          #isochrone stuff
@@ -71,6 +74,32 @@ stream_inputs = odict([
          feh=-1.7, 
          distance=13.2, #kpc
          turnoff=18.7, # mag of MS turnoff
+         alpha=0, #don't think we actually use this
+         scale_err=2,
+         base_err=0.075,
+         bin_sizes=[0.03,0.2])),
+    ('Fjorm-M68',
+     dict(
+         #galstream stuff
+         short_name='M68-Fjorm',
+         #pawprint_id='ibata2021',
+         pawprint_id='palau2019',
+         #stream stuff
+         width=1, # TOTAL width degrees, recommend 2sigma if known
+         #data stuff
+         phot_survey='Gaia',
+         band1='BP',
+         band2='RP',
+         mag='G0',
+         color1='BP0',
+         color2='RP0',
+         minmag=16.,
+         maxmag=24.0,
+         #isochrone stuff
+         age=11.2, # Gyr
+         feh=-2.2, 
+         distance=6, #kpc
+         turnoff=17.0, # mag of MS turnoff
          alpha=0, #don't think we actually use this
          scale_err=2,
          base_err=0.075,

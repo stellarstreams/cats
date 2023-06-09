@@ -254,7 +254,10 @@ class Pawprint(dict):
             track_file=track_file,
             summary_file=summary_file,
         )
-        data["width"] = width # This is very variable per stream, user should be encouraged to change it
+        try:
+            data["width"] = 2*data['track'].track_width['width_phi2'] # one standard deviation on each side (is this wide enough?)
+        except:
+            data["width"] = width
         data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
             width=data["width"], phi2_offset=0.0 * u.deg
         )
