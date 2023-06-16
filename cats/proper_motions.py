@@ -17,7 +17,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 from scipy.interpolate import UnivariateSpline as US
 
 import sys
-sys.path.append('/Users/Tavangar/CATS_workshop/cats/')
+sys.path.append('../')
 from cats.pawprint.pawprint import Pawprint, Footprint2D
 from cats.inputs import stream_inputs as inputs
 
