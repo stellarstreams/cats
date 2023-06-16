@@ -21,17 +21,6 @@ sys.path.append('../')
 from cats.pawprint.pawprint import Pawprint, Footprint2D
 from cats.inputs import stream_inputs as inputs
 
-
-# %%
-# first CMD selection
-## default CMD mask fixed but for distance
-# take Gaia data crossmatched with photometric data
-# apply CMD and spatial masks
-# plot on stream and off stream proper motion 
-# automated to find highest density location
-# define our mask
-
-
 def rough_pm_poly(pawprint, data, buffer=2):
     '''
     Will return a polygon with a rough cut in proper motion space.
