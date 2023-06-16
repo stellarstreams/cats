@@ -5,17 +5,24 @@ Created on Wed Nov  2 11:22:24 2022
 
 @author: Ani, Kiyan, Richard
 """
+
 import matplotlib as mpl
 from matplotlib.patches import PathPatch
 import matplotlib.pyplot as plt
+
+
 import numpy as np
+
 import scipy
 from scipy.interpolate import interp1d
 from scipy.interpolate import InterpolatedUnivariateSpline
 from scipy.signal import correlate2d
+
 from ugali.analysis.isochrone import factory as isochrone_factory
-from astropy.coordinates import SkyCoord
 from isochrones.mist import MIST_Isochrone
+
+from astropy.coordinates import SkyCoord
+
 import sys
 sys.path.append('../')
 from cats.pawprint.pawprint import Pawprint, Footprint2D
