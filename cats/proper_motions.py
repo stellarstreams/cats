@@ -32,7 +32,7 @@ from cats.inputs import stream_inputs as inputs
 # define our mask
 
 
-def rough_pm_poly(pawprint, buffer=2):
+def rough_pm_poly(pawprint, data, buffer=2):
     '''
     Will return a polygon with a rough cut in proper motion space.
     This aims to be ~100% complete with no thoughts about purity.
@@ -57,8 +57,11 @@ def rough_pm_poly(pawprint, buffer=2):
                                [track_pm1_max + buffer, track_pm2_min - buffer]])
 
     pawprint.pmprint = Footprint2D(rough_pm_poly, footprint_type='cartesian')
+    
+    pm_points = np.vstack((data['pm_phi1_cosphi2_unrefl'], data['pm_phi2_unrefl'])).T
+    rough_pm_mask = pawprint.pmprint.inside_footprint(pm_points)
 
-    return pawprint.pmprint
+    return pawprint.pmprint, rough_pm_mask
 
 
 class ProperMotionSelection:
