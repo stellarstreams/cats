@@ -1,0 +1,127 @@
+\documentclass[twocolumn]{aastex63}
+
+% typography
+\usepackage[T1]{fontenc}
+
+\usepackage{amsmath}
+
+\setlength{\parindent}{1.\baselineskip}
+\newcommand{\acronym}[1]{{\small{#1}}}
+\newcommand{\package}[1]{\textsl{#1}}
+\newcommand{\gaia}{\textsl{Gaia}}
+
+% \newcommand{\deg}{\ensuremath{\textrm{deg}}}
+\newcommand{\gyr}{\ensuremath{\textrm{Gyr}}}
+\newcommand{\kpc}{\ensuremath{\textrm{kpc}}}
+\newcommand{\mas}{\ensuremath{\textrm{mas}}}
+\newcommand{\ul}{\ensuremath{\textrm{kpc}^2\,\textrm{Myr}^{-1}}}
+\newcommand{\ue}{\ensuremath{\textrm{kpc}^2\,\textrm{Myr}^{-2}}}
+\newcommand{\kms}{\ensuremath{\textrm{km}\,\textrm{s}^{-1}}}
+\newcommand{\masyr}{\ensuremath{\textrm{mas}\,\textrm{yr}^{-1}}}
+\newcommand{\feh}{\ensuremath{\textrm{[Fe/H]}}}
+\newcommand{\afe}{\ensuremath{\textrm{[$\alpha$/Fe]}}}
+
+\newcommand{\changes}[1]{{\textbf{#1}}}
+
+% aastex parameters
+% \received{not yet; THIS IS A DRAFT}
+%\revised{not yet}
+%\accepted{not yet}
+% % Adds "Submitted to " the arguement.
+% \submitjournal{AJ}
+\shorttitle{}
+\shortauthors{cats}
+
+%@arxiver{}
+
+\begin{document}\sloppy\sloppypar\raggedbottom\frenchspacing % trust me
+
+\title{Community Atlas of Tidal Streams}
+
+% \correspondingauthor{}
+% \email{}
+
+\author{CATS Team}
+\affil{Around the globe}
+
+% \author[0000-0002-7846-9787]{Ana~Bonaca}
+% \affil{The Observatories of the Carnegie Institution for Science, 813 Santa Barbara Street, Pasadena, CA 91101, USA}
+
+
+\begin{abstract}\noindent % trust me
+Recent years have seen an enormous growth in the discovery of tidal streams in the Milky Way, reaching nearly a hundred known streams today.
+This unprecedented data set provides an avenue to study some of the first stars in the Universe and presents some of the most stringent tests of the dark-matter paradigm.
+To deliver on these promises, a homogeneous catalog of all known streams is needed.
+Here we present a well-motivated series of modeling procedures to homogeneously characterize the known streams in publicly available astrometry, photometry, and spectroscopy.
+We demonstrate these procedures on five stellar streams spanning a wide range in length, distance and surface brightness: GD-1, Palomar~5, Jhelum, Fj\" orm, and PS1-A.
+The outcome of our modeling are membership probabilities of the constituent stream stars.
+All of our code and the catalogs for the five analyzed streams are publicly available, and constitute the first contribution towards the Community Atlas of Tidal Streams (CATS).
+CATS will be a lasting asset to the community, making once prohibitively time-expensive projects possible, and significantly easing the entry of newcomers into the field.
+\end{abstract}
+
+\section{Introduction}
+
+\section{Datasets}
+
+\section{Workflow / Methods}
+
+\subsection{From discovery to pawprints}
+
+\subsection{Proper motions}
+
+\subsection{Color-magnitude diagram}
+
+\subsection{Density modeling}
+
+\subsection{Distance tracers}
+
+\subsection{Spectroscopy}
+
+
+\section{Results}
+- membership catalogs for the 5 selected streams, in order of difficulty
+- based on these catalogs, we also discuss any density variations, abundances, constraints on the stellar mass
+
+\subsection{GD-1}
+
+
+\subsection{Palomar~5}
+
+
+\subsection{Jhelum}
+
+
+\subsection{Fj\" orm}
+
+
+\subsection{PS1-A}
+- a null result also valuable
+
+
+
+\section{Discussion}
+
+
+
+\section{Conclusions}
+
+
+
+\vspace{0.5cm}
+It is a pleasure to thank 
+
+
+\software{
+\package{Astropy} \citep{astropy, astropy:2018},
+\package{gala} \citep{gala},
+\package{IPython} \citep{ipython},
+\package{matplotlib} \citep{mpl},
+\package{numpy} \citep{numpy},
+\package{scipy} \citep{scipy}
+}
+
+\bibliographystyle{aasjournal}
+\bibliography{cats}
+
+
+\end{document}
