@@ -86,7 +86,6 @@ class Pawprint(dict):
     """
 
     def __init__(self, data):
-
         self.stream_name = data["stream_name"]
         self.pawprint_ID = data["pawprint_ID"]
         self.stream_frame = data["stream_frame"]

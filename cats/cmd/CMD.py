@@ -41,6 +41,7 @@ plt.rc(
 
 class Isochrone:
     def __init__(self, stream, cat, pawprint):
+
         """
         Defining variables loaded into class.
 
@@ -116,7 +117,6 @@ class Isochrone:
         self.on_skymask = on_mask
 
     def sel_pm(self):
-
         """
         Initialising the proper motions polygon mask to return only contained sources.
         """
@@ -144,7 +144,6 @@ class Isochrone:
         self.on_pm12mask = on_pm1_mask & on_pm2_mask
 
     def generate_isochrone(self):
-
         """
         load an isochrone, LF model for a given metallicity, age, distance
         """
@@ -220,6 +219,7 @@ class Isochrone:
         # return iso, initial_mass, mass_pdf, actual_mass, mag_1, mag_2, mmag_1, mmag_2, \
         #            mmass_pdf
 
+        
     def data_cmd(self, xrange=[-0.5, 1.0], yrange=[15, 22]):
 
         """
@@ -339,6 +339,7 @@ class Isochrone:
         return scale_err*err(self.mag) + base_tol
     
     def simpleSln(self, maxmag=22, scale_err=2, mass_thresh=0.80):
+
         """
         Select the stars that are within the CMD polygon cut
         --------------------------------
@@ -515,8 +516,6 @@ class Isochrone:
         return fig
     
     
-        
-
     def convolve_1d(self, probabilities, mag_err):
 
         """
@@ -539,7 +538,6 @@ class Isochrone:
         self.convolved = convolved
 
     def convolve_errors(self, g_errors, r_errors, intr_err=0.1):
-
         """
 
         1D Gaussian convolution of the data with uncertainities.
@@ -567,7 +565,6 @@ class Isochrone:
         self.probabilities = probabilities
 
     def errFn(self):
-
         """
         Generate the errors for the magnitudes?
         """
