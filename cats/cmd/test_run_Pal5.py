@@ -4,7 +4,7 @@ from CMD import Isochrone
 
 
 def main() -> int:
-    fn = "./joined-GD-1.fits"
+    fn = "./joined-Pal5.fits"
     cat = at.Table.read(fn)
 
     sky_poly = [[-20, -1], [10, -1], [10, 1], [-20, 1]]

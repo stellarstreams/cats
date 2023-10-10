@@ -11,3 +11,4 @@ pyia
 astroquery
 dustmaps
 asdf
+ugali

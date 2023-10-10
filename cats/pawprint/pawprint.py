@@ -115,10 +115,24 @@ class Pawprint(dict):
             self.cmdprint = None
         if data["pm_vertices"] is not None:
             self.pmprint = Footprint2D(
-                data["pm_vertices"], footprint_type="sky"
+                data["pm_vertices"], footprint_type="cartesian"
             )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
         else:
             self.pmprint = None
+        if data["pm1_vertices"] is not None:
+            self.pm1print = Footprint2D(
+                data["pm1_vertices"], footprint_type="cartesian"
+            )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
+        else:
+            self.pm1print = None
+
+        # Need to code this into CMD and proper motion stuff
+        if data["pm2_vertices"] is not None:
+            self.pm2print = Footprint2D(
+                data["pm2_vertices"], footprint_type="cartesian"
+            )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
+        else:
+            self.pm2print = None
 
         self.track = data["track"]
 
@@ -169,7 +183,7 @@ class Pawprint(dict):
         return cls(data)
 
     @classmethod
-    def pawprint_from_galstreams(cls, stream_name, pawprint_ID):
+    def pawprint_from_galstreams(cls, stream_name, pawprint_ID, width):
         galstreams_dir = os.path.dirname(gst.__file__)
         galstreams_tracks = os.path.join(galstreams_dir, "tracks/")
 
@@ -238,7 +252,12 @@ class Pawprint(dict):
             track_file=track_file,
             summary_file=summary_file,
         )
-        data["width"] = 1.0 * u.deg
+        try:
+            data["width"] = (
+                2 * data["track"].track_width["width_phi2"]
+            )  # one standard deviation on each side (is this wide enough?)
+        except:
+            data["width"] = width
         data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
             width=data["width"], phi2_offset=0.0 * u.deg
         )
@@ -250,6 +269,8 @@ class Pawprint(dict):
         data["cmd_filters"] = None
         data["cmd_vertices"] = None
         data["pm_vertices"] = None
+        data["pm1_vertices"] = None
+        data["pm2_vertices"] = None
 
         return cls(data)
 
