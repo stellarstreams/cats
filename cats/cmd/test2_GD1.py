@@ -1,28 +1,28 @@
-import astropy.table as at
-from astropy.coordinates import SkyCoord
-import matplotlib.pyplot as plt
-import galstreams
+import sys
 
+import astropy.table as at
+import galstreams
+import matplotlib.pyplot as plt
+from astropy.coordinates import SkyCoord
 from CMD import Isochrone
 
-import sys
-sys.path.append('../')
-from pawprint.pawprint import Pawprint, Footprint2D
-sys.path.append('../../')
+sys.path.append("../")
+from pawprint.pawprint import Footprint2D, Pawprint
+
+sys.path.append("../../")
 from cats.data import make_astro_photo_joined_data
 
-
-#gd1_joined = make_astro_photo_joined_data(GD1_gaia, GD1_phot, GD1_track6D)
+# gd1_joined = make_astro_photo_joined_data(GD1_gaia, GD1_phot, GD1_track6D)
 
 # Note: if already loaded, we can just write:
 fn = "/Users/Tavangar/CATS_workshop/cats/data/joined-GD-1.fits"
 cat = at.Table.read(fn)
 
-p = Pawprint.pawprint_from_galstreams('GD-1','pricewhelan2018')
+p = Pawprint.pawprint_from_galstreams("GD-1", "pricewhelan2018")
 
 pm_poly = [[-9, -2], [-9, 0.5], [-4, 1.5], [-4, -1]]
-p.pmprint = Footprint2D(pm_poly, footprint_type='cartesian')
-     
+p.pmprint = Footprint2D(pm_poly, footprint_type="cartesian")
+
 
 o = Isochrone(
     cat,
@@ -56,4 +56,3 @@ print(o.y_shift)
 # plt.plot(iso_patch[:,0], iso_patch[:,1], '--k')
 # plt.gca().invert_yaxis()
 # plt.show()
-

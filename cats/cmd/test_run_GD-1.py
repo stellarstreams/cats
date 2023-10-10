@@ -1,34 +1,35 @@
-import astropy.table as at
-from astropy.coordinates import SkyCoord
-import matplotlib.pyplot as plt
-import galstreams
+import sys
 
+import astropy.table as at
+import galstreams
+import matplotlib.pyplot as plt
+from astropy.coordinates import SkyCoord
 from CMD import Isochrone
 
-import sys
-sys.path.append('/Users/Tavangar/CATS_workshop/cats/')
-from cats.pawprint.pawprint import Pawprint, Footprint2D
+sys.path.append("/Users/Tavangar/CATS_workshop/cats/")
 from cats.data import make_astro_photo_joined_data
+from cats.pawprint.pawprint import Footprint2D, Pawprint
 
 
 def main() -> int:
     fn = "/Users/Tavangar/CATS_workshop/cats/data/joined-GD-1.fits"
     cat = at.Table.read(fn)
 
-    p = Pawprint.pawprint_from_galstreams('GD-1','pricewhelan2018')
+    p = Pawprint.pawprint_from_galstreams("GD-1", "pricewhelan2018")
 
     pm1_mean, pm2_mean, pm1_std, pm2_std = -7.4, -0.3, 0.29, 0.21
-#     pm_poly = [[-9, -2], [-9, 0.5], [-4, 1.5], [-4, -1]]
-    pm_poly = [[pm1_mean-2*pm1_std, pm2_mean-2*pm2_std],
-               [pm1_mean-2*pm1_std, pm2_mean+2*pm2_std],
-               [pm1_mean+2*pm1_std, pm2_mean+2*pm2_std],
-               [pm1_mean+2*pm1_std, pm2_mean-2*pm2_std]]
-    p.pmprint = Footprint2D(pm_poly, footprint_type='cartesian')
-#     p.add_pm_footprint(
-#         Footprint2D(pm_poly, footprint_type='cartesian'),
-#         name='pm'
-#     )
-
+    #     pm_poly = [[-9, -2], [-9, 0.5], [-4, 1.5], [-4, -1]]
+    pm_poly = [
+        [pm1_mean - 2 * pm1_std, pm2_mean - 2 * pm2_std],
+        [pm1_mean - 2 * pm1_std, pm2_mean + 2 * pm2_std],
+        [pm1_mean + 2 * pm1_std, pm2_mean + 2 * pm2_std],
+        [pm1_mean + 2 * pm1_std, pm2_mean - 2 * pm2_std],
+    ]
+    p.pmprint = Footprint2D(pm_poly, footprint_type="cartesian")
+    #     p.add_pm_footprint(
+    #         Footprint2D(pm_poly, footprint_type='cartesian'),
+    #         name='pm'
+    #     )
 
     o = Isochrone(
         cat,
