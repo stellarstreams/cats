@@ -63,40 +63,62 @@ CATS will be a lasting asset to the community, making once prohibitively time-ex
 
 \section{Datasets}
 
+\subsection{Gaia and Photometric Surveys}
+ - Gaia, PS1, DES, DELVE?
+
+\subsection{RR Lyrae and BHBs}
+
+-RR Lyrae (Cecilia): Gaia SOS (RRL), Gaia+PS1+ASAS-SNII+ZTF+OGLE,  
+-BHBs: PS1 (Zdenek?)
+
 \section{Workflow / Methods}
 
 \subsection{From discovery to pawprints}
 
+-WG1 pawprint code overview
+-Briefly Kiyan's generalized pipeline from stream to different membership cuts (Kiyan)
+
 \subsection{Proper motions}
+(Kiyan)
+- Process in proper motions code (3 different types of cuts in proper motions: box in pm1-pm2 [complete but not pure] , cut along phi1-pm1/phi1-pm2 galstreams track +/- width, cut along pm1/pm2 track)
 
 \subsection{Color-magnitude diagram}
+(Kiyan)
+- Process in CMD.py (how we cut in color-magnitude space: take age, metallicity, distance from literature/galstreams, create isochrone and then fit to data)
 
 \subsection{Density modeling}
 
+(Adrian and Kiyan) density modeling pipeline
+
 \subsection{Distance tracers}
+
+- procedure: use results from density modelling pipeline to compute membership probabilities for RRL in the stream's pawprint 
 
 \subsection{Spectroscopy}
 
+(Ana) - treat similarly to distance tracers.
 
 \section{Results}
 - membership catalogs for the 5 selected streams, in order of difficulty
 - based on these catalogs, we also discuss any density variations, abundances, constraints on the stellar mass
 
 \subsection{GD-1}
-
+prototype for cold stream with off-stream features
 
 \subsection{Palomar~5}
-
+prototype for distant stream with proper motion info
 
 \subsection{Jhelum}
-
+prototype for relatively faint stream with proper motion info (also with non-trivial structure)
 
 \subsection{Fj\" orm}
-
+prototype for STREAMFINDER stream, nearby and long
 
 \subsection{PS1-A}
-- a null result also valuable
+prototype for photometrically detected stream without proper motion info.
 
+- a null result also valuable
+- Note from 2022-12-01: consider Elqui(?) as another stream instead of/in addition to PS1-A as a prototype for stream without pm info that we might try to recover
 
 
 \section{Discussion}
