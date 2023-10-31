@@ -5,21 +5,22 @@ Created on Wed Nov  2 11:22:24 2022
 
 @author: Ani, Kiyan, Richard
 """
+import sys
+
 import matplotlib as mpl
-from matplotlib.patches import PathPatch
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-from scipy.interpolate import interp1d
-from scipy.interpolate import InterpolatedUnivariateSpline
-from scipy.signal import correlate2d
-from ugali.analysis.isochrone import factory as isochrone_factory
 from astropy.coordinates import SkyCoord
 from isochrones.mist import MIST_Isochrone
-import sys
-sys.path.append('/Users/Tavangar/CATS_workshop/cats/')
-from cats.pawprint.pawprint import Pawprint, Footprint2D
+from matplotlib.patches import PathPatch
+from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
+from scipy.signal import correlate2d
+from ugali.analysis.isochrone import factory as isochrone_factory
+
+sys.path.append("/Users/Tavangar/CATS_workshop/cats/")
 from cats.inputs import stream_inputs as inputs
+from cats.pawprint.pawprint import Footprint2D, Pawprint
 
 plt.rc(
     "xtick",
@@ -54,97 +55,102 @@ class Isochrone:
         alpha = alpha/Fe
         pawprint = Stream multidimensional footprint
         """
-        
+
         # Pull survey from catalog?
-        self.stream=stream
+        self.stream = stream
         self.cat = cat
-        self.age=inputs[stream]['age']
-        self.feh=inputs[stream]['feh']
-        self.distance=inputs[stream]['distance']  # kpc
-        self.alpha=inputs[stream]['alpha']
-        self.dist_mod = 5 * np.log10(1000*self.distance) - 5
-        
+        self.age = inputs[stream]["age"]
+        self.feh = inputs[stream]["feh"]
+        self.distance = inputs[stream]["distance"]  # kpc
+        self.alpha = inputs[stream]["alpha"]
+        self.dist_mod = 5 * np.log10(1000 * self.distance) - 5
+
         self.pawprint = pawprint
         track = self.pawprint.track.track.transform_to(self.pawprint.track.stream_frame)
-        
-        if self.stream == 'GD-1':
+
+        if self.stream == "GD-1":
             distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])
             self.dist_mod_correct = distmod_spl(self.cat["phi1"]) - self.dist_mod
         else:
-            spline_dist = InterpolatedUnivariateSpline(track.phi1.value, track.distance.value)
-            self.dist_mod_correct = (5 * np.log10(spline_dist(self.cat["phi1"]) * 1000) - 5) - self.dist_mod
-        
-        
-        
+            spline_dist = InterpolatedUnivariateSpline(
+                track.phi1.value, track.distance.value
+            )
+            self.dist_mod_correct = (
+                5 * np.log10(spline_dist(self.cat["phi1"]) * 1000) - 5
+            ) - self.dist_mod
+
         self.x_shift = 0
         self.y_shift = 0
-        self.phot_survey = inputs[self.stream]['phot_survey']
-        self.band1 = inputs[self.stream]['band1']
-        self.band2 = inputs[self.stream]['band2']
-        self.data_mag = inputs[self.stream]['mag']
-        self.data_color1 = inputs[self.stream]['color1']
-        self.data_color2 = inputs[self.stream]['color2']
-        self.turnoff = inputs[self.stream]['turnoff']
-        
+        self.phot_survey = inputs[self.stream]["phot_survey"]
+        self.band1 = inputs[self.stream]["band1"]
+        self.band2 = inputs[self.stream]["band2"]
+        self.data_mag = inputs[self.stream]["mag"]
+        self.data_color1 = inputs[self.stream]["color1"]
+        self.data_color2 = inputs[self.stream]["color2"]
+        self.turnoff = inputs[self.stream]["turnoff"]
+
         self.generate_isochrone()
         self.sel_sky()
         self.sel_pm()
         if self.pawprint.pm1print is not None:
             self.sel_pm12()
-            
+
         self.data_cmd()
         if self.pawprint.pm1print is not None:
             # Only shift isochrone is the previous cuts are clean enough
             #  Otherwise it will just shift to the background
             self.correct_isochrone()
-    
 
     def sel_sky(self):
         """
         Initialising the on-sky polygon mask to return only contained sources.
         """
-        
+
         on_poly_patch = mpl.patches.Polygon(
-            self.pawprint.skyprint['stream'].vertices[::50], facecolor="none", edgecolor="k", linewidth=2
+            self.pawprint.skyprint["stream"].vertices[::50],
+            facecolor="none",
+            edgecolor="k",
+            linewidth=2,
         )
         on_points = np.vstack((self.cat["phi1"], self.cat["phi2"])).T
         on_mask = on_poly_patch.get_path().contains_points(on_points)
-        
-#         on_points = np.vstack((self.cat["phi1"], self.cat["phi2"])).T
-#         on_mask = self.pawprint.skyprint['stream'].inside_footprint(on_points) #very slow because skyprint is very large
+
+        #         on_points = np.vstack((self.cat["phi1"], self.cat["phi2"])).T
+        #         on_mask = self.pawprint.skyprint['stream'].inside_footprint(on_points) #very slow because skyprint is very large
 
         self.on_skymask = on_mask
 
     def sel_pm(self):
-
         """
         Initialising the proper motions polygon mask to return only contained sources.
         """
 
-        on_points = np.vstack((self.cat["pm_phi1_cosphi2_unrefl"], self.cat["pm_phi2_unrefl"])).T
-        
+        on_points = np.vstack(
+            (self.cat["pm_phi1_cosphi2_unrefl"], self.cat["pm_phi2_unrefl"])
+        ).T
+
         on_mask = self.pawprint.pmprint.inside_footprint(on_points)
 
         self.on_pmmask = on_mask
-        
-    def sel_pm12(self):
 
+    def sel_pm12(self):
         """
         Initialising the proper motions polygon mask to return only contained sources.
         """
 
-        on_pm1_points = np.vstack((self.cat['phi1'], self.cat["pm_phi1_cosphi2_unrefl"])).T
-        on_pm2_points = np.vstack((self.cat['phi1'], self.cat["pm_phi2_unrefl"])).T
-        
+        on_pm1_points = np.vstack(
+            (self.cat["phi1"], self.cat["pm_phi1_cosphi2_unrefl"])
+        ).T
+        on_pm2_points = np.vstack((self.cat["phi1"], self.cat["pm_phi2_unrefl"])).T
+
         on_pm1_mask = self.pawprint.pm1print.inside_footprint(on_pm1_points)
         on_pm2_mask = self.pawprint.pm2print.inside_footprint(on_pm2_points)
-        
+
         self.on_pm1mask = on_pm1_mask
         self.on_pm2mask = on_pm2_mask
         self.on_pm12mask = on_pm1_mask & on_pm2_mask
 
     def generate_isochrone(self):
-
         """
         load an isochrone, LF model for a given metallicity, age, distance
         """
@@ -155,13 +161,14 @@ class Isochrone:
         ZX_solar = 0.0229
         z = (1 - Y_p) / ((1 + c) + (1 / ZX_solar) * 10 ** (-self.feh))
 
-        if self.phot_survey == 'Gaia':
+        if self.phot_survey == "Gaia":
             mist = MIST_Isochrone()
-            iso = mist.isochrone(age=np.log10(1e9*self.age), #has to be given in logAge
-                           feh=self.feh,
-                           eep_range=None, #get the whole isochrone,
-                           distance=1e3*self.distance #given in parsecs
-                          )
+            iso = mist.isochrone(
+                age=np.log10(1e9 * self.age),  # has to be given in logAge
+                feh=self.feh,
+                eep_range=None,  # get the whole isochrone,
+                distance=1e3 * self.distance,  # given in parsecs
+            )
 
             initial_mass, actual_mass = iso.initial_mass.values, iso.mass.values
             mag = iso.G_mag.values
@@ -173,10 +180,10 @@ class Isochrone:
             initial_mass = initial_mass[0:turn_idx]
             actual_mass = actual_mass[0:turn_idx]
             self.masses = actual_mass
-            
+
             self.mag = mag[0:turn_idx]
             self.color = color_1[0:turn_idx] - color_2[0:turn_idx]
-            
+
         else:
             iso = isochrone_factory(
                 "Dotter",
@@ -190,7 +197,9 @@ class Isochrone:
 
             iso.afe = self.alpha
 
-            initial_mass, mass_pdf, actual_mass, mag_1, mag_2 = iso.sample(mass_steps=4e2)
+            initial_mass, mass_pdf, actual_mass, mag_1, mag_2 = iso.sample(
+                mass_steps=4e2
+            )
             mag_1 = mag_1 + iso.distance_modulus
             mag_2 = mag_2 + iso.distance_modulus
 
@@ -201,7 +210,7 @@ class Isochrone:
             actual_mass = actual_mass[0:turn_idx]
             mag_1 = mag_1[0:turn_idx]
             mag_2 = mag_2[0:turn_idx]
-            
+
             self.mag = mag_1
             self.color = mag_1 - mag_2
 
@@ -221,7 +230,6 @@ class Isochrone:
         #            mmass_pdf
 
     def data_cmd(self, xrange=[-0.5, 1.0], yrange=[15, 22]):
-
         """
         Empirical CMD generated from the input catalogue, with distance gradient accounted for.
 
@@ -232,21 +240,33 @@ class Isochrone:
         yrange: Set the range of magnitude values. Default is [15, 22].
         """
         tab = self.cat
-        x_bins = np.arange(xrange[0], xrange[1], inputs[self.stream]['bin_sizes'][0])  # Used 0.03 for Jhelum
-        y_bins = np.arange(yrange[0], yrange[1], inputs[self.stream]['bin_sizes'][1])  # Used 0.2 for Jhelum
+        x_bins = np.arange(
+            xrange[0], xrange[1], inputs[self.stream]["bin_sizes"][0]
+        )  # Used 0.03 for Jhelum
+        y_bins = np.arange(
+            yrange[0], yrange[1], inputs[self.stream]["bin_sizes"][1]
+        )  # Used 0.2 for Jhelum
 
         # if this is the second runthrough and a proper motion mask already exists, use that instead of the rough one
         if self.pawprint.pm1print is not None:
             data, xedges, yedges = np.histogram2d(
-                (tab[self.data_color1] - tab[self.data_color2])[self.on_pm12mask & self.on_skymask],
-                (tab[self.data_mag] - self.dist_mod_correct)[self.on_pm12mask & self.on_skymask],
+                (tab[self.data_color1] - tab[self.data_color2])[
+                    self.on_pm12mask & self.on_skymask
+                ],
+                (tab[self.data_mag] - self.dist_mod_correct)[
+                    self.on_pm12mask & self.on_skymask
+                ],
                 bins=[x_bins, y_bins],
                 density=True,
             )
         else:
             data, xedges, yedges = np.histogram2d(
-                (tab[self.data_color1] - tab[self.data_color2])[self.on_pmmask & self.on_skymask],
-                (tab[self.data_mag] - self.dist_mod_correct)[self.on_pmmask & self.on_skymask],
+                (tab[self.data_color1] - tab[self.data_color2])[
+                    self.on_pmmask & self.on_skymask
+                ],
+                (tab[self.data_mag] - self.dist_mod_correct)[
+                    self.on_pmmask & self.on_skymask
+                ],
                 bins=[x_bins, y_bins],
                 density=True,
             )
@@ -254,9 +274,8 @@ class Isochrone:
         self.x_edges = xedges
         self.y_edges = yedges
         self.CMD_data = data.T
-        
-    def correct_isochrone(self):
 
+    def correct_isochrone(self):
         """
         Correlate the 2D histograms from the data and the
         theoretical isochrone to find the shift in color
@@ -271,9 +290,7 @@ class Isochrone:
         )
 
         signal_counts, xedges, yedges = np.histogram2d(
-            self.color, 
-            self.mag, 
-            bins=[self.x_edges, self.y_edges]
+            self.color, self.mag, bins=[self.x_edges, self.y_edges]
         )
         signal = signal / signal_counts
         signal[np.isnan(signal)] = 0.0
@@ -312,32 +329,37 @@ class Isochrone:
                 np.flip(np.array([col_high_vals, mag_vals]).T, axis=0),
             ]
         )
-        cmd_footprint = Footprint2D(cmd_poly, footprint_type='cartesian')
-        
-        cmd_points = np.vstack((self.cat[self.data_color1] - self.cat[self.data_color2], 
-                                self.cat[self.data_mag] - self.dist_mod_correct)).T
+        cmd_footprint = Footprint2D(cmd_poly, footprint_type="cartesian")
+
+        cmd_points = np.vstack(
+            (
+                self.cat[self.data_color1] - self.cat[self.data_color2],
+                self.cat[self.data_mag] - self.dist_mod_correct,
+            )
+        ).T
         cmd_mask = cmd_footprint.inside_footprint(cmd_points)
 
         return cmd_footprint, cmd_mask
 
-    
     def get_tolerance(self, scale_err=1, base_tol=0.075):
-        '''
+        """
         Convolving errors to create wider selections near mag limit
         Code written by Nora Shipp and adapted by Kiyan Tavangar
-        '''
-        if self.phot_survey == 'PS1':
-            err=lambda x: 0.00363355415 + np.exp((x - 23.9127145) / 1.09685211)
-        elif self.phot_survey == 'DES_DR2':
+        """
+        if self.phot_survey == "PS1":
+            err = lambda x: 0.00363355415 + np.exp((x - 23.9127145) / 1.09685211)
+        elif self.phot_survey == "DES_DR2":
             # from DES_DR1 in Nora's code (I think should apply here as well)
-            err=lambda x: 0.0010908679647672335 + np.exp((x - 27.091072029215375) / 1.0904624484538419)
+            err = lambda x: 0.0010908679647672335 + np.exp(
+                (x - 27.091072029215375) / 1.0904624484538419
+            )
         else:
             # assume PS1 while I wait for Gaia photometry
-            err=lambda x: 0.00363355415 + np.exp((x - 23.9127145) / 1.09685211)
-            #err=lambda x: 0*x
-        
-        return scale_err*err(self.mag) + base_tol
-    
+            err = lambda x: 0.00363355415 + np.exp((x - 23.9127145) / 1.09685211)
+            # err=lambda x: 0*x
+
+        return scale_err * err(self.mag) + base_tol
+
     def simpleSln(self, maxmag=22, scale_err=2, mass_thresh=0.80):
         """
         Select the stars that are within the CMD polygon cut
@@ -360,82 +382,107 @@ class Isochrone:
         coloff = self.x_shift
         magoff = self.y_shift
         ind = self.masses < mass_thresh
-        
+
         tol = self.get_tolerance(scale_err)[ind]
 
         iso_low = interp1d(
-            self.mag[ind] + magoff, self.color[ind] + coloff - tol, fill_value="extrapolate"
+            self.mag[ind] + magoff,
+            self.color[ind] + coloff - tol,
+            fill_value="extrapolate",
         )
         iso_high = interp1d(
-            self.mag[ind] + magoff, self.color[ind] + coloff + tol, fill_value="extrapolate"
+            self.mag[ind] + magoff,
+            self.color[ind] + coloff + tol,
+            fill_value="extrapolate",
         )
         iso_model = interp1d(
             self.mag[ind] + magoff, self.color[ind] + coloff, fill_value="extrapolate"
         )
 
         hb_print, self.hb_mask = self.make_hb_print()
-        
-        cmd_footprint, self.cmd_mask = self.make_poly(iso_low, iso_high, maxmag, minmag=self.turnoff)
 
-        #self.pawprint.cmd_filters = ... need to specify this since g vs g-r is a specific choice
-        #self.pawprint.add_cmd_footprint(cmd_footprint, 'g_r', 'g', 'cmdprint')
+        cmd_footprint, self.cmd_mask = self.make_poly(
+            iso_low, iso_high, maxmag, minmag=self.turnoff
+        )
+
+        # self.pawprint.cmd_filters = ... need to specify this since g vs g-r is a specific choice
+        # self.pawprint.add_cmd_footprint(cmd_footprint, 'g_r', 'g', 'cmdprint')
         self.pawprint.cmdprint = cmd_footprint
         self.pawprint.hbprint = hb_print
-        
-        #self.pawprint.save_pawprint(...)
-        
+
+        # self.pawprint.save_pawprint(...)
+
         return cmd_footprint, self.cmd_mask, hb_print, self.hb_mask, self.pawprint
-    
+
     def make_hb_print(self):
         # probably want to incorporate this into cmdprint and have two discontinous regions
-        if self.phot_survey == 'PS1':
-            if self.band2 == 'i':
+        if self.phot_survey == "PS1":
+            if self.band2 == "i":
                 g_i_0 = np.array([-0.9, -0.6, -0.2, 0.45, 0.6, -0.6, -0.9])
                 Mg_ps1 = np.array([3.3, 3.3, 0.9, 1.25, 0.4, 0.1, 3.3]) + self.dist_mod
 
                 hb_poly = np.vstack((g_i_0, Mg_ps1)).T
-                hb_footprint = Footprint2D(hb_poly, footprint_type='cartesian')
-                hb_points = np.vstack((self.cat[self.data_color1] - self.cat[self.data_color2], 
-                                    self.cat[self.data_mag] - self.dist_mod_correct)).T
+                hb_footprint = Footprint2D(hb_poly, footprint_type="cartesian")
+                hb_points = np.vstack(
+                    (
+                        self.cat[self.data_color1] - self.cat[self.data_color2],
+                        self.cat[self.data_mag] - self.dist_mod_correct,
+                    )
+                ).T
                 hb_mask = hb_footprint.inside_footprint(hb_points)
-            
-            elif self.band2 == 'r':
+
+            elif self.band2 == "r":
                 # g-r, g panstarss bands
                 g_r_0 = np.array([-0.5, -0.3, -0.1, 0.35, 0.45, -0.35, -0.5])
                 Mg_ps1 = np.array([3.3, 3.3, 1.0, 1.2, 0.4, 0.1, 3.3]) + self.dist_mod
 
                 hb_poly = np.vstack((g_r_0, Mg_ps1)).T
-                hb_footprint = Footprint2D(hb_poly, footprint_type='cartesian')
-                hb_points = np.vstack((self.cat[self.data_color1] - self.cat[self.data_color2], 
-                                    self.cat[self.data_mag] - self.dist_mod_correct)).T
+                hb_footprint = Footprint2D(hb_poly, footprint_type="cartesian")
+                hb_points = np.vstack(
+                    (
+                        self.cat[self.data_color1] - self.cat[self.data_color2],
+                        self.cat[self.data_mag] - self.dist_mod_correct,
+                    )
+                ).T
                 hb_mask = hb_footprint.inside_footprint(hb_points)
-                
-        elif self.phot_survey == 'Gaia':
+
+        elif self.phot_survey == "Gaia":
             bp_rp_0 = np.array([-0.5, -0.2, 0.15, 0.85, 0.9, -0.1, -0.5])
             Mv = np.array([3.3, 3.3, 1.05, 0.8, -0.0, 0.4, 3.3]) + self.dist_mod
 
-            hb_poly = np.vstack((bp_rp_0, Mv)).T #doesn't take into account distance gradient
-            hb_footprint = Footprint2D(hb_poly, footprint_type='cartesian')
-            hb_points = np.vstack((self.cat[self.data_color1] - self.cat[self.data_color2], 
-                                self.cat[self.data_mag] - self.dist_mod_correct)).T
+            hb_poly = np.vstack(
+                (bp_rp_0, Mv)
+            ).T  # doesn't take into account distance gradient
+            hb_footprint = Footprint2D(hb_poly, footprint_type="cartesian")
+            hb_points = np.vstack(
+                (
+                    self.cat[self.data_color1] - self.cat[self.data_color2],
+                    self.cat[self.data_mag] - self.dist_mod_correct,
+                )
+            ).T
             hb_mask = hb_footprint.inside_footprint(hb_points)
-            
-        elif self.phot_survey == 'des':
+
+        elif self.phot_survey == "des":
             # don't select any points until we get the des polygon
             g_r_0 = np.array([-0.5, -0.5])
             Mg_des = np.array([3.3, 3.3]) + self.dist_mod
-            
-            #g_r_0 = np.array([-0.5, -0.2, 0.15, 0.85, 0.9, -0.1, -0.5])
-            #Mg_des = np.array([3.3, 3.3, 1.05, 0.8, -0.0, 0.4, 3.3])
 
-            hb_poly = np.vstack((g_r_0, Mg_des)).T #doesn't take into account distance gradient
-            hb_footprint = Footprint2D(hb_poly, footprint_type='cartesian')
-            hb_points = np.vstack((self.cat[self.data_color1] - self.cat[self.data_color2], 
-                                self.cat[self.data_mag] - self.dist_mod_correct)).T
+            # g_r_0 = np.array([-0.5, -0.2, 0.15, 0.85, 0.9, -0.1, -0.5])
+            # Mg_des = np.array([3.3, 3.3, 1.05, 0.8, -0.0, 0.4, 3.3])
+
+            hb_poly = np.vstack(
+                (g_r_0, Mg_des)
+            ).T  # doesn't take into account distance gradient
+            hb_footprint = Footprint2D(hb_poly, footprint_type="cartesian")
+            hb_points = np.vstack(
+                (
+                    self.cat[self.data_color1] - self.cat[self.data_color2],
+                    self.cat[self.data_mag] - self.dist_mod_correct,
+                )
+            ).T
             hb_mask = hb_footprint.inside_footprint(hb_points)
-            
+
         return hb_footprint, hb_mask
-            
 
     def plot_CMD(self, scale_err=2):
         """
@@ -443,15 +490,15 @@ class Isochrone:
         data.
 
         Returns matplotlib Figure.
-        
+
         WANT TO PLOT THE ACTUAL POLYGON USED AS WELL
         """
         if self.pawprint.pm1print is not None:
             cat = self.cat[self.on_pm12mask & self.on_skymask]
-            #cat = self.cat[self.on_pm12mask]
+            # cat = self.cat[self.on_pm12mask]
         else:
             cat = self.cat[self.on_pmmask & self.on_skymask]
-            #cat = self.cat[self.on_pmmask]
+            # cat = self.cat[self.on_pmmask]
         color = self.color + self.x_shift
         mag = self.mag + self.y_shift
         mass_pdf = self.masses
@@ -489,17 +536,25 @@ class Isochrone:
             ls="--",
             zorder=10,
         )
-        
-        patch_cmd = PathPatch(self.pawprint.cmdprint.footprint, 
-                          facecolor='none', edgecolor='red', 
-                          linewidth=3, zorder=10)
+
+        patch_cmd = PathPatch(
+            self.pawprint.cmdprint.footprint,
+            facecolor="none",
+            edgecolor="red",
+            linewidth=3,
+            zorder=10,
+        )
         ax.add_patch(patch_cmd)
 
-        patch_hb = PathPatch(self.pawprint.hbprint.footprint, 
-                          facecolor='none', edgecolor='red', 
-                          linewidth=3, zorder=10)
+        patch_hb = PathPatch(
+            self.pawprint.hbprint.footprint,
+            facecolor="none",
+            edgecolor="red",
+            linewidth=3,
+            zorder=10,
+        )
         ax.add_patch(patch_hb)
-        
+
         ax.set_xlabel(
             f"{self.band1}-{self.band2}",
             fontsize=20,
@@ -513,12 +568,8 @@ class Isochrone:
         ax.set_xlim(-0.5, 1.5)
 
         return fig
-    
-    
-        
 
     def convolve_1d(self, probabilities, mag_err):
-
         """
         1D Gaussian convolution.
 
@@ -539,7 +590,6 @@ class Isochrone:
         self.convolved = convolved
 
     def convolve_errors(self, g_errors, r_errors, intr_err=0.1):
-
         """
 
         1D Gaussian convolution of the data with uncertainities.
@@ -567,7 +617,6 @@ class Isochrone:
         self.probabilities = probabilities
 
     def errFn(self):
-
         """
         Generate the errors for the magnitudes?
         """

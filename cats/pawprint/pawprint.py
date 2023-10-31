@@ -86,7 +86,6 @@ class Pawprint(dict):
     """
 
     def __init__(self, data):
-
         self.stream_name = data["stream_name"]
         self.pawprint_ID = data["pawprint_ID"]
         self.stream_frame = data["stream_frame"]
@@ -126,7 +125,7 @@ class Pawprint(dict):
             )  # polygon(s) in proper-motion space mu_phi1, mu_phi2
         else:
             self.pm1print = None
-            
+
         # Need to code this into CMD and proper motion stuff
         if data["pm2_vertices"] is not None:
             self.pm2print = Footprint2D(
@@ -185,7 +184,6 @@ class Pawprint(dict):
 
     @classmethod
     def pawprint_from_galstreams(cls, stream_name, pawprint_ID, width):
-
         galstreams_dir = os.path.dirname(gst.__file__)
         galstreams_tracks = os.path.join(galstreams_dir, "tracks/")
 
@@ -255,7 +253,9 @@ class Pawprint(dict):
             summary_file=summary_file,
         )
         try:
-            data["width"] = 2*data['track'].track_width['width_phi2'] # one standard deviation on each side (is this wide enough?)
+            data["width"] = (
+                2 * data["track"].track_width["width_phi2"]
+            )  # one standard deviation on each side (is this wide enough?)
         except:
             data["width"] = width
         data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
@@ -271,7 +271,6 @@ class Pawprint(dict):
         data["pm_vertices"] = None
         data["pm1_vertices"] = None
         data["pm2_vertices"] = None
-        
 
         return cls(data)
 

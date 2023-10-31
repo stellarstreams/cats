@@ -21,9 +21,9 @@ recommend using Python 3.9 or 3.10.
 
 General Note: This pipeline is specifically designed to be applied to streams for which we have all (or at least
 most) of the input information. It cannot be used to detect new streams and I would anticipate some issues
-if it is used to derive parameters for which we have very broad priors. Luckily, galstreams is fantastic and we have the 
-requisite phase space track information for nearly all the streams. And we generally have isochrone information from 
-the discovery papers, although not always. Because of this, the process currently relies heavily on galstreams and 
+if it is used to derive parameters for which we have very broad priors. Luckily, galstreams is fantastic and we have the
+requisite phase space track information for nearly all the streams. And we generally have isochrone information from
+the discovery papers, although not always. Because of this, the process currently relies heavily on galstreams and
 assumes that it is accurate enough to be used as a good starting point for fine-tuning.
 
 I believe there are two goals to using this process to make polygons and cuts:
@@ -44,7 +44,7 @@ Making the polygons and stream member cuts is now a fully automated process that
 The process takes in the following inputs for each stream:
 - Galstreams (uses `pawprint_from_galstreams` function to create initial sky polygon)
     - short_name
-    - pawprint_id 
+    - pawprint_id
     - stream width (in degrees)
 - Isochrone parameters:
     - Age (in Gyrs)
@@ -62,7 +62,7 @@ The process takes in the following inputs for each stream:
     - mag2
     - minmag
     - maxmag
-    
+
 
 The process will automatically make the following polygons to achieve these two objectives:
 1. Rough PM cut polygon (see `proper_motions.py` for documentation)
@@ -90,8 +90,8 @@ The process will automatically make the following polygons to achieve these two 
     - Use this guess to fit for the mean and standard deviation in each proper motion coordinate. This uses the residual pm histogram between the on-stream and off-stream regions.
     - Take the galstreams tracks in each pm coordinate and create a polygon with half-width equal to the fitted standard deviation.
     - Limitation for now: does not extrapolate to outside the galstreams track so would not capture any potential stream stars outside this region.
-    
-Notes: 
+
+Notes:
 1. There is currently an issue when trying to use g vs g-i rather than g vs g-r for Pal 5. Not sure where this is coming from, I'll try to look into it but would appreciate any ideas.
 2. In general, I think it's probably possible to do better with Pal 5 but I was trying to do this in as non-specific a way as possible, so that it could be generalized.
 3. I've not added footprints in the way that it was originally designed. I couldn't figure out the add_new_footprint functions especially for the CMD footprints. So I am just updating the pawprint by saying `pawprint.cmdprint = new_cmdprint` (as opposed to `pawprint.add_new_cmdprint(new_cmd_print,...)` as originally designed. This can probably be easily updated by someone who originally helped write the pawprint functions.
