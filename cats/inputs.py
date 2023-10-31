@@ -103,4 +103,30 @@ stream_inputs = odict([
          alpha=0, #don't think we actually use this
          scale_err=2,
          base_err=0.075,
-         bin_sizes=[0.03,0.2])),])
+         bin_sizes=[0.03,0.2])),
+    ('Gunnthra',
+     dict(
+         #galstream stuff
+         short_name='Gunnthra',
+         #pawprint_id='ibata2021',
+         pawprint_id='ibata2021',
+         #stream stuff
+         width=5, # TOTAL width degrees, recommend 2sigma if known
+         #data stuff
+         phot_survey='Gaia',
+         band1='BP',
+         band2='RP',
+         mag='G0',
+         color1='BP0',
+         color2='RP0',
+         minmag=16.,
+         maxmag=24.0,
+         #isochrone stuff
+         age=10, # Gyr
+         feh=-0.7, 
+         distance=3, #kpc
+         turnoff=17.0, # mag of MS turnoff
+         alpha=0, #don't think we actually use this
+         scale_err=2,
+         base_err=0.075,
+         bin_sizes=[0.03,0.2]))])
