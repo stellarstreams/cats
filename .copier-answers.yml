@@ -1,0 +1,12 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 2023.10.27
+_src_path: gh:scientific-python/cookie
+backend: hatch
+email: nstarman@users.noreply.github.com
+full_name: CATS
+license: MIT
+org: stellarstreams
+project_name: cats
+project_short_description: Community Atlas of Tidal Streams
+url: https://github.com/stellarstreams/cats
+vcs: true
