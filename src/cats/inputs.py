@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import OrderedDict
+from collections import OrderedDict
 
 # config file with all the inputs
 
