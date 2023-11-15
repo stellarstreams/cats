@@ -1,10 +1,13 @@
 """CMD functions."""
+
 from __future__ import annotations
 
+import astropy.units as u
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+from astropy.coordinates import Distance
 from isochrones.mist import MIST_Isochrone
 from matplotlib.patches import PathPatch
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
@@ -16,72 +19,58 @@ from cats.pawprint.pawprint import Footprint2D
 
 __authors__ = "Ani, Kiyan, Richard"
 
-plt.rc(
-    "xtick",
-    top=True,
-    direction="in",
-    labelsize=15,
-)
-plt.rc(
-    "ytick",
-    right=True,
-    direction="in",
-    labelsize=15,
-)
-plt.rc(
-    "font",
-    family="Arial",
-)
+plt.rc("xtick", top=True, direction="in", labelsize=15)
+plt.rc("ytick", right=True, direction="in", labelsize=15)
+plt.rc("font", family="Arial")
 
 
 class Isochrone:
-    def __init__(self, stream, cat, pawprint):
-        """
-        Defining variables loaded into class.
+    """Isochrone class for CMD selection.
 
-        ------------------------------------------------------------------
+    Parameters
+    ----------
+    name : str
+        The name of the stream. Parameters must be registered in ``inputs``.
+    cat:
+        Input catalogue.
+    pawprint:
+        Stream multidimensional footprint.
+    """
 
-        Parameters:
-        cat = Input catalogue.
-        age = Input age of stream from galstreams and/or literature.
-        feh = Input metallicity from galstreams and/or literature.
-        distance = Input distance from galstreams and/or literature.
-        alpha = alpha/Fe
-        pawprint = Stream multidimensional footprint
-        """
-
-        # Pull survey from catalog?
-        self.stream = stream
+    def __init__(self, name: str, /, cat, pawprint) -> None:
+        self.stream = name
         self.cat = cat
-        self.age = inputs[stream]["age"]
-        self.feh = inputs[stream]["feh"]
-        self.distance = inputs[stream]["distance"]  # kpc
-        self.alpha = inputs[stream]["alpha"]
-        self.dist_mod = 5 * np.log10(1000 * self.distance) - 5
-
         self.pawprint = pawprint
+
+        params = inputs[name]
+        self.age = params["age"]
+        self.feh = params["feh"]
+        self.alpha = params["alpha"]
+        self.distance = params["distance"]
+
         track = self.pawprint.track.track.transform_to(self.pawprint.track.stream_frame)
 
         if self.stream == "GD-1":
-            distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])
-            self.dist_mod_correct = distmod_spl(self.cat["phi1"]) - self.dist_mod
-        else:
-            spline_dist = InterpolatedUnivariateSpline(
-                track.phi1.value, track.distance.value
-            )
+            distmod_spl = np.poly1d([2.41e-4, 2.421e-2, 15.001])  # [deg] -> [mag]
             self.dist_mod_correct = (
-                5 * np.log10(spline_dist(self.cat["phi1"]) * 1000) - 5
-            ) - self.dist_mod
+                distmod_spl(self.cat["phi1"]) - self.distance.distmod
+            )
+        else:
+            spline_dist = InterpolatedUnivariateSpline(  # [deg] -> [kpc]
+                track.phi1.to_value(u.deg), track.distance.to_value(u.kpc)
+            )
+            delta_distmod = Distance(spline_dist(self.cat["phi1"]), unit=u.kpc).distmod
+            self.dist_mod_correct = delta_distmod - self.dist_mod
 
         self.x_shift = 0
         self.y_shift = 0
-        self.phot_survey = inputs[self.stream]["phot_survey"]
-        self.band1 = inputs[self.stream]["band1"]
-        self.band2 = inputs[self.stream]["band2"]
-        self.data_mag = inputs[self.stream]["mag"]
-        self.data_color1 = inputs[self.stream]["color1"]
-        self.data_color2 = inputs[self.stream]["color2"]
-        self.turnoff = inputs[self.stream]["turnoff"]
+        self.phot_survey = params["phot_survey"]
+        self.band1 = params["band1"]
+        self.band2 = params["band2"]
+        self.data_mag = params["mag"]
+        self.data_color1 = params["color1"]
+        self.data_color2 = params["color2"]
+        self.turnoff = params["turnoff"]
 
         self.generate_isochrone()
         self.sel_sky()
@@ -91,15 +80,14 @@ class Isochrone:
 
         self.data_cmd()
         if self.pawprint.pm1print is not None:
-            # Only shift isochrone is the previous cuts are clean enough
-            #  Otherwise it will just shift to the background
+            # Only shift isochrone is the previous cuts are clean enough,
+            # otherwise it will just shift to the background
             self.correct_isochrone()
 
     def sel_sky(self):
         """
         Initialising the on-sky polygon mask to return only contained sources.
         """
-
         on_poly_patch = mpl.patches.Polygon(
             self.pawprint.skyprint["stream"].vertices[::50],
             facecolor="none",
@@ -109,22 +97,16 @@ class Isochrone:
         on_points = np.vstack((self.cat["phi1"], self.cat["phi2"])).T
         on_mask = on_poly_patch.get_path().contains_points(on_points)
 
-        #         on_points = np.vstack((self.cat["phi1"], self.cat["phi2"])).T
-        #         on_mask = self.pawprint.skyprint['stream'].inside_footprint(on_points) #very slow because skyprint is very large
-
         self.on_skymask = on_mask
 
     def sel_pm(self):
         """
         Initialising the proper motions polygon mask to return only contained sources.
         """
-
         on_points = np.vstack(
             (self.cat["pm_phi1_cosphi2_unrefl"], self.cat["pm_phi2_unrefl"])
         ).T
-
         on_mask = self.pawprint.pmprint.inside_footprint(on_points)
-
         self.on_pmmask = on_mask
 
     def sel_pm12(self):
@@ -148,7 +130,6 @@ class Isochrone:
         """
         load an isochrone, LF model for a given metallicity, age, distance
         """
-
         # Convert feh to z
         Y_p = 0.245  # Primordial He abundance (WMAP, 2003)
         c = 1.54  # He enrichment ratio
@@ -158,21 +139,20 @@ class Isochrone:
         if self.phot_survey == "Gaia":
             mist = MIST_Isochrone()
             iso = mist.isochrone(
-                age=np.log10(1e9 * self.age),  # has to be given in logAge
+                age=9 + np.log10(self.age.to_value(u.Gyr)),  # log(age [yr])
                 feh=self.feh,
                 eep_range=None,  # get the whole isochrone,
-                distance=1e3 * self.distance,  # given in parsecs
+                distance=self.distance.to_value(u.pc),
             )
 
-            initial_mass, actual_mass = iso.initial_mass.values, iso.mass.values
             mag = iso.G_mag.values
             color_1 = iso.BP_mag.values
             color_2 = iso.RP_mag.values
 
             # Excise the horizontal branch
             turn_idx = scipy.signal.argrelextrema(iso.G_mag.values, np.less)[0][0]
-            initial_mass = initial_mass[0:turn_idx]
-            actual_mass = actual_mass[0:turn_idx]
+            initial_mass = iso.initial_mass.values[0:turn_idx]
+            actual_mass = iso.mass.values[0:turn_idx]
             self.masses = actual_mass
 
             self.mag = mag[0:turn_idx]
@@ -219,9 +199,6 @@ class Isochrone:
             self.mmag_1 = mmag_1
             self.mmag_2 = mmag_2
             self.mmass_pdf = mmass_pdf
-
-        # return iso, initial_mass, mass_pdf, actual_mass, mag_1, mag_2, mmag_1, mmag_2, \
-        #            mmass_pdf
 
     def data_cmd(self, xrange=(-0.5, 1.0), yrange=(15, 22)):
         """
