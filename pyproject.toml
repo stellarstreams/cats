@@ -154,7 +154,6 @@ ignore = [
   "ARG001",  # Unused function argument `X`
   "ARG003",  # Unused method argument `X`
   "F821",  # Undefined name `X`
-  "PT018",  # Assertion should be broken down into multiple parts
   "RET504",  # Unnecessary assignment `return` statement
   "RET505",  # Unnecessary `else` after `return`
   "SIM118",  # Use `key in dict` instead of `key in dict.keys()`

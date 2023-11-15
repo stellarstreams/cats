@@ -98,9 +98,9 @@ class ProperMotionSelection:
 
         self.cutoff = cutoff
 
-        assert (
-            self.cutoff <= 1 and self.cutoff >= 0
-        ), "the value of self.cutoff put in does not make sense! It has to be between 0 and 1"
+        if not (self.cutoff <= 1 and self.cutoff >= 0):
+            msg = "the value of self.cutoff put in does not make sense! It has to be between 0 and 1"
+            raise AssertionError(msg)
 
         # Get tracks from galstreams with splines
         spline_phi2, spline_pm1, spline_pm2, spline_dist = self.from_galstreams()

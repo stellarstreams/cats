@@ -81,7 +81,8 @@ class AbstractPhotometricSurvey(metaclass=abc.ABCMeta):
         this method.
         """
         if self.custom_extinction:
-            raise RuntimeError("TODO")
+            msg = "TODO"
+            raise RuntimeError(msg)
 
         if dustmaps_cls is None:
             dustmaps_cls = self.dustmaps_cls
