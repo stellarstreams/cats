@@ -41,7 +41,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        # TODO: Add when ugali support 3.12
+        python-version: ["3.9", "3.10", "3.11"]
         runs-on: [ubuntu-latest]
 
         include:
@@ -49,8 +50,8 @@ jobs:
             runs-on: ubuntu-latest
           - python-version: "3.11"
             runs-on: macos-latest
-          - python-version: "3.11"
-            runs-on: windows-latest
+          # - python-version: "3.11"  # Add when gala supports windows
+          #   runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
