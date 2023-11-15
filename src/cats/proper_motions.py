@@ -137,7 +137,7 @@ class ProperMotionSelection:
         mid_phi1 = np.median(self.track.phi1.value)
         print(mid_phi1)
 
-        if best_pm_phi1_mean == None:
+        if best_pm_phi1_mean is None:
             # TODO: generalize this later to percentile_values = [16, 50, 84]
 
             #             if self.stream == 'Fjorm-M68':
