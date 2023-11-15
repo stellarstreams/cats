@@ -2,13 +2,16 @@ from __future__ import annotations
 
 __all__ = ["DESY6Phot"]
 
-from typing import ClassVar, TypedDict
+from typing import TYPE_CHECKING, ClassVar, TypedDict
 
-import astropy.coordinates as coord
 import astropy.units as u
+from astropy.coordinates import SkyCoord
 from astropy.table import QTable
 
 from cats.photometry._base import AbstractPhotometricSurvey
+
+if TYPE_CHECKING:
+    from numpy import bool_
 
 
 class DESY6BandNames(TypedDict):
@@ -30,13 +33,15 @@ class DESY6Phot(AbstractPhotometricSurvey):
     extinction_coeffs: ClassVar[DESY6ExtinctionCoeffs] = {"g": 3.237, "r": 2.176}
     custom_extinction: ClassVar[bool] = True
 
-    def get_skycoord(self):
-        return coord.SkyCoord(self.data["RA"] * u.deg, self.data["DEC"] * u.deg)
+    def get_skycoord(self) -> SkyCoord:
+        return SkyCoord(self.data["RA"] * u.deg, self.data["DEC"] * u.deg)
 
-    def get_star_mask(self):
+    def get_star_mask(self) -> NDArray[bool_]:
         return (self.data["EXT_FITVD"] >= 0) & (self.data["EXT_FITVD"] < 2)
 
-    def get_ext_corrected_phot(self, dustmaps_cls=None):
+    def get_ext_corrected_phot(
+        self, dustmaps_cls: tuple[Dustmap] | None = None
+    ) -> QTable:
         if dustmaps_cls is None:
             dustmaps_cls = self.dustmaps_cls
 

@@ -4,15 +4,17 @@ __all__ = ["AbstractPhotometricSurvey"]
 
 import abc
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
-import numpy as np
-import numpy.typing as npt
-from astropy.coordinates import SkyCoord
 from astropy.table import QTable, Table
-from dustmaps.map_base import DustMap
 from dustmaps.sfd import SFDQuery
-from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from astropy.coordinates import SkyCoord
+    from dustmaps.map_base import DustMap
+    from numpy import bool_
+    from numpy.typing import NDArray
+    from typing_extensions import Self
 
 
 @dataclass(frozen=True)
@@ -61,7 +63,7 @@ class AbstractPhotometricSurvey(metaclass=abc.ABCMeta):
         """Return a SkyCoord object from the data table."""
 
     @abc.abstractmethod
-    def get_star_mask(self) -> npt.NDArray[np.bool_]:
+    def get_star_mask(self) -> NDArray[bool_]:
         """Star-galaxy separation."""
 
     def get_ext_corrected_phot(

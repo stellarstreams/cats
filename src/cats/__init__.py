@@ -1,5 +1,4 @@
-"""
-Copyright (c) 2023 CATS. All rights reserved.
+"""Copyright (c) 2023 CATS. All rights reserved.
 
 cats: Community Atlas of Tidal Streams
 """

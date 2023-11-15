@@ -28,8 +28,11 @@ def make_astro_photo_joined_data(
     Parameters
     ----------
     gaia_data : `pyia.GaiaData`
+        The Gaia data.
     phot_data : `cats.photometry.PhotometricSurvey`
+        The photometry data.
     track6d : `galstreams.Track6D`
+        The stream track.
 
     Returns
     -------

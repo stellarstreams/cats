@@ -2,13 +2,19 @@ from __future__ import annotations
 
 __all__ = ["GaiaDR3Phot"]
 
-from typing import ClassVar, TypedDict
+from typing import TYPE_CHECKING, ClassVar, TypedDict
 
 import numpy as np
 from astropy.table import QTable
 from pyia import GaiaData
 
 from cats.photometry._base import AbstractPhotometricSurvey
+
+if TYPE_CHECKING:
+    from astropy.coordinates import SkyCoord
+    from dustmaps.map_base import DustMap
+    from numpy import bool_
+    from numpy.typing import NDArray
 
 
 class GaiaDR3BandNames(TypedDict):
@@ -25,13 +31,15 @@ class GaiaDR3Phot(AbstractPhotometricSurvey):
     }
     custom_extinction: ClassVar[bool] = True
 
-    def get_skycoord(self):
+    def get_skycoord(self) -> SkyCoord:
         return GaiaData(self.data).get_skycoord(distance=False)
 
-    def get_star_mask(self):
+    def get_star_mask(self) -> NDArray[bool_]:
         return np.ones(len(self.data), dtype=bool)
 
-    def get_ext_corrected_phot(self, dustmaps_cls=None):
+    def get_ext_corrected_phot(
+        self, dustmaps_cls: type[DustMap] | None = None
+    ) -> QTable:
         if dustmaps_cls is None:
             dustmaps_cls = self.dustmaps_cls
 

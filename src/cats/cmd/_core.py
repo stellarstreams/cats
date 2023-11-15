@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any, Callable
+
 import astropy.units as u
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
+from astropy.convolution import Gaussian1DKernel, convolve
 from astropy.coordinates import Distance
 from isochrones.mist import MIST_Isochrone
 from matplotlib.patches import PathPatch
@@ -15,7 +18,13 @@ from scipy.signal import correlate2d
 from ugali.analysis.isochrone import factory as isochrone_factory
 
 from cats.inputs import stream_inputs as inputs
-from cats.pawprint.pawprint import Footprint2D
+from cats.pawprint._footprint import Footprint2D
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
+    from numpy.typing import NDArray
+
+    from cats.pawprint import Pawprint
 
 __authors__ = "Ani, Kiyan, Richard"
 
@@ -37,7 +46,7 @@ class Isochrone:
         Stream multidimensional footprint.
     """
 
-    def __init__(self, name: str, /, cat, pawprint) -> None:
+    def __init__(self, name: str, /, cat: Any, pawprint: Pawprint) -> None:
         self.stream = name
         self.cat = cat
         self.pawprint = pawprint
@@ -84,10 +93,8 @@ class Isochrone:
             # otherwise it will just shift to the background
             self.correct_isochrone()
 
-    def sel_sky(self):
-        """
-        Initialising the on-sky polygon mask to return only contained sources.
-        """
+    def sel_sky(self) -> None:
+        """Initialize the on-sky polygon mask."""
         on_poly_patch = mpl.patches.Polygon(
             self.pawprint.skyprint["stream"].vertices[::50],
             facecolor="none",
@@ -95,25 +102,17 @@ class Isochrone:
             linewidth=2,
         )
         on_points = np.vstack((self.cat["phi1"], self.cat["phi2"])).T
-        on_mask = on_poly_patch.get_path().contains_points(on_points)
+        self.on_skymask = on_poly_patch.get_path().contains_points(on_points)
 
-        self.on_skymask = on_mask
-
-    def sel_pm(self):
-        """
-        Initialising the proper motions polygon mask to return only contained sources.
-        """
+    def sel_pm(self) -> None:
+        """Initialize the proper motions polygon mask."""
         on_points = np.vstack(
             (self.cat["pm_phi1_cosphi2_unrefl"], self.cat["pm_phi2_unrefl"])
         ).T
-        on_mask = self.pawprint.pmprint.inside_footprint(on_points)
-        self.on_pmmask = on_mask
+        self.on_pmmask = self.pawprint.pmprint.inside_footprint(on_points)
 
-    def sel_pm12(self):
-        """
-        Initialising the proper motions polygon mask to return only contained sources.
-        """
-
+    def sel_pm12(self) -> None:
+        """Initialize the proper motions polygon mask."""
         on_pm1_points = np.vstack(
             (self.cat["phi1"], self.cat["pm_phi1_cosphi2_unrefl"])
         ).T
@@ -126,10 +125,8 @@ class Isochrone:
         self.on_pm2mask = on_pm2_mask
         self.on_pm12mask = on_pm1_mask & on_pm2_mask
 
-    def generate_isochrone(self):
-        """
-        load an isochrone, LF model for a given metallicity, age, distance
-        """
+    def generate_isochrone(self) -> None:
+        """Load an isochrone, LF model for a given metallicity, age, distance."""
         # Convert feh to z
         Y_p = 0.245  # Primordial He abundance (WMAP, 2003)
         c = 1.54  # He enrichment ratio
@@ -200,15 +197,20 @@ class Isochrone:
             self.mmag_2 = mmag_2
             self.mmass_pdf = mmass_pdf
 
-    def data_cmd(self, xrange=(-0.5, 1.0), yrange=(15, 22)):
-        """
-        Empirical CMD generated from the input catalogue, with distance gradient accounted for.
+    def data_cmd(
+        self,
+        xrange: tuple[float, float] = (-0.5, 1.0),
+        yrange: tuple[float, float] = (15, 22),
+    ) -> None:
+        """Make Empirical CMD.
 
-        ------------------------------------------------------------------
+        Empirical CMD generated from the input catalogue, with distance gradient
+        accounted for.
 
-        Parameters:
-        xrange: Set the range of color values. Default is [-0.5, 1.0].
-        yrange: Set the range of magnitude values. Default is [15, 22].
+        Parameters
+        ----------
+        xrange, yrange: tuple[float, float]
+            Set the range of color values.
         """
         tab = self.cat
         x_bins = np.arange(
@@ -218,7 +220,8 @@ class Isochrone:
             yrange[0], yrange[1], inputs[self.stream]["bin_sizes"][1]
         )  # Used 0.2 for Jhelum
 
-        # if this is the second runthrough and a proper motion mask already exists, use that instead of the rough one
+        # if this is the second runthrough and a proper motion mask already
+        # exists, use that instead of the rough one
         if self.pawprint.pm1print is not None:
             data, xedges, yedges = np.histogram2d(
                 (tab[self.data_color1] - tab[self.data_color2])[
@@ -246,21 +249,21 @@ class Isochrone:
         self.y_edges = yedges
         self.CMD_data = data.T
 
-    def correct_isochrone(self):
-        """
+    def correct_isochrone(self) -> None:
+        """Correct the isochrone.
+
         Correlate the 2D histograms from the data and the
         theoretical isochrone to find the shift in color
         and magnitude necessary for the best match
         """
-
-        signal, xedges, yedges = np.histogram2d(
+        signal, *_ = np.histogram2d(
             self.color,
             self.mag,
             bins=[self.x_edges, self.y_edges],
             weights=np.ones(len(self.mag)),
         )
 
-        signal_counts, xedges, yedges = np.histogram2d(
+        signal_counts, *_ = np.histogram2d(
             self.color, self.mag, bins=[self.x_edges, self.y_edges]
         )
         signal = signal / signal_counts
@@ -272,24 +275,36 @@ class Isochrone:
         self.x_shift = (x - len(ccor2d[0]) / 2.0) * (self.x_edges[1] - self.x_edges[0])
         self.y_shift = (y - len(ccor2d) / 2.0) * (self.y_edges[1] - self.y_edges[0])
 
-    def make_poly(self, iso_low, iso_high, maxmag=26, minmag=14):
+    def make_poly(
+        self,
+        iso_low: InterpolatedUnivariateSpline,
+        iso_high: InterpolatedUnivariateSpline,
+        maxmag: float = 26,
+        minmag: float = 14,
+    ) -> tuple[Any, Any]:
+        """Generate the CMD polygon mask.
+
+        Parameters
+        ----------
+        iso_low: InterpolatedUnivariateSpline
+            spline function describing the "left" bound of the theorietical
+            isochrone
+        iso_high: InterpolatedUnivariateSpline
+            spline function describing the "right" bound of the theoretical
+            isochrone
+        maxmag: float
+            faint limit of theoretical isochrone, should be deeper than all data
+        minmag: float
+            bright limit of theoretical isochrone, either include just MS and
+            subgiant branch or whole isochrone
+
+        Returns
+        -------
+        cmd_poly : NDArray
+            Polygon vertices in CMD space.
+        cmd_mask : NDArray[bool]
+            Boolean mask in CMD sapce.
         """
-        Generate the CMD polygon mask.
-
-        ------------------------------------------------------------------
-
-        Parameters:
-        iso_low: spline function describing the "left" bound of the theorietical isochrone
-        iso_high: spline function describing the "right" bound of the theoretical isochrone
-        maxmag: faint limit of theoretical isochrone, should be deeper than all data
-        minmag: bright limit of theoretical isochrone, either include just MS and subgiant branch or whole isochrone
-
-        Returns:
-        cmd_poly: Polygon vertices in CMD space.
-        cmd_mask: Boolean mask in CMD sapce.
-
-        """
-
         mag_vals = np.arange(minmag, maxmag, 0.01)
         col_low_vals = iso_low(mag_vals)
         col_high_vals = iso_high(mag_vals)
@@ -312,10 +327,11 @@ class Isochrone:
 
         return cmd_footprint, cmd_mask
 
-    def get_tolerance(self, scale_err=1, base_tol=0.075):
-        """
-        Convolving errors to create wider selections near mag limit
-        Code written by Nora Shipp and adapted by Kiyan Tavangar
+    def get_tolerance(self, scale_err: float = 1, base_tol: float = 0.075) -> float:
+        """Convolving errors to create wider selections near mag limit.
+
+        .. codeauthor::
+            Nora Shipp, Kiyan Tavangar
         """
         if self.phot_survey == "PS1":
             offset = 0.00363355415
@@ -334,30 +350,35 @@ class Isochrone:
             mu = 23.9127145
             scale = 1.09685211
 
-        def err(x):
+        def err(x: float) -> float:
             return offset + np.exp((x - mu) / scale)
 
         return scale_err * err(self.mag) + base_tol
 
-    def simpleSln(self, maxmag=22, scale_err=2, mass_thresh=0.80):
-        """
-        Select the stars that are within the CMD polygon cut
-        --------------------------------
-        Parameters:
-        - maxmag: faint limit of created CMD polygon, should be deeper than all data
-        - mass_thresh: upper limit for the theoretical mass that dictates the bright limit of the
-                       theoretical isochrone used for polygon
-        - coloff: shift in color from theoretical isochrone to data
-        - magoff: shift in magnitude from theoretical isochrone to data
+    def simpleSln(
+        self, maxmag: float = 22, scale_err: float = 2, mass_thresh: float = 0.80
+    ) -> tuple[Any, Any, Any, Any]:
+        """Select the stars that are within the CMD polygon cut.
 
-        Returns:
+        Parameters
+        ----------
+        maxmag: float
+            faint limit of created CMD polygon, should be deeper than all data
+        scale_err : float
+            TODO.
+        mass_thresh : float
+            TODO.
+
+        Returns
+        -------
         - cmd_poly: vertices of the CMD polygon cut
         - cmd_mask: bitmask of stars that pass the polygon cut
         - iso_model: the theoretical isochrone after shifts
-        - iso_low: the "left" bound of the CMD polygon cut made from theoretical isochrone
-        - iso_high: the "right" bound of the CMD polygon cut made from theoretical isochrone
+        - iso_low: the "left" bound of the CMD polygon cut made from theoretical
+          isochrone
+        - iso_high: the "right" bound of the CMD polygon cut made from
+          theoretical isochrone
         """
-
         coloff = self.x_shift
         magoff = self.y_shift
         ind = self.masses < mass_thresh
@@ -384,8 +405,6 @@ class Isochrone:
             iso_low, iso_high, maxmag, minmag=self.turnoff
         )
 
-        # self.pawprint.cmd_filters = ... need to specify this since g vs g-r is a specific choice
-        # self.pawprint.add_cmd_footprint(cmd_footprint, 'g_r', 'g', 'cmdprint')
         self.pawprint.cmdprint = cmd_footprint
         self.pawprint.hbprint = hb_print
 
@@ -393,8 +412,9 @@ class Isochrone:
 
         return cmd_footprint, self.cmd_mask, hb_print, self.hb_mask, self.pawprint
 
-    def make_hb_print(self):
-        # probably want to incorporate this into cmdprint and have two discontinuous regions
+    def make_hb_print(self) -> None:
+        # probably want to incorporate this into cmdprint and have two
+        # discontinuous regions
         if self.phot_survey == "PS1":
             if self.band2 == "i":
                 g_i_0 = np.array([-0.9, -0.6, -0.2, 0.45, 0.6, -0.6, -0.9])
@@ -463,10 +483,10 @@ class Isochrone:
 
         return hb_footprint, hb_mask
 
-    def plot_CMD(self, scale_err=2):
-        """
-        Plot the shifted isochrone over a 2D histogram of the polygon-selected
-        data.
+    def plot_CMD(self, scale_err: float = 2) -> Figure:
+        """Plot the shifted isochrone.
+
+        Over a 2D histogram of the polygon-selected data.
 
         Returns matplotlib Figure.
 
@@ -548,16 +568,15 @@ class Isochrone:
 
         return fig
 
-    def convolve_1d(self, probabilities, mag_err):
-        """
-        1D Gaussian convolution.
+    def convolve_1d(self, probabilities: NDArray, mag_err: NDArray) -> NDArray:
+        """1D Gaussian convolution.
 
-        ------------------------------------------------------------------
-
-        Parameters:
-        probabilities:
-        mag_err: Uncertainty in the magnitudes.
-
+        Parameters
+        ----------
+        probabilities : NDArray
+            Probability of the magnitudes.
+        mag_err : NDArray
+            Uncertainty in the magnitudes.
         """
         self.probabilities = probabilities
         self.mag_err = mag_err
@@ -568,20 +587,21 @@ class Isochrone:
 
         self.convolved = convolved
 
-    def convolve_errors(self, g_errors, r_errors, intr_err=0.1):
+    def convolve_errors(
+        self,
+        g_errors: Callable[[NDArray], NDArray],
+        r_errors: Callable[[NDArray], NDArray],
+        intr_err: float = 0.1,
+    ) -> None:
+        """1D Gaussian convolution of the data with uncertainties.
+
+        Parameters
+        ----------
+        g_errors, r_errors : Callable[[ndarray], ndarray]
+            g, r magnitude uncertainties.
+        intr_err:
+            Free to set. Default is 0.1.
         """
-
-        1D Gaussian convolution of the data with uncertainties.
-
-        ------------------------------------------------------------------
-
-        Parameters:
-        g_errors: g magnitude uncertainties.
-        r_errors: r magnitude uncertainties.
-        intr_err: Free to set. Default is 0.1.
-
-        """
-
         for i in range(len(probabilities)):
             probabilities[i] = convolve_1d(
                 probabilities[i],
@@ -595,11 +615,8 @@ class Isochrone:
 
         self.probabilities = probabilities
 
-    def errFn(self):
-        """
-        Generate the errors for the magnitudes?
-        """
-
+    def errFn(self) -> None:
+        """Generate the errors for the magnitudes."""
         gerrs = np.zeros(len(self.y_bins))
         rerrs = np.zeros(len(self.x_bins))
 

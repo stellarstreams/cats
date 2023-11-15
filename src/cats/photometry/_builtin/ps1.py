@@ -2,14 +2,16 @@ from __future__ import annotations
 
 __all__ = ["PS1Phot"]
 
-from typing import ClassVar, TypedDict
+from typing import TYPE_CHECKING, ClassVar, TypedDict
 
 import astropy.units as u
-import numpy as np
-import numpy.typing as npt
 from astropy.coordinates import SkyCoord
 
 from cats.photometry._base import AbstractPhotometricSurvey
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
+    from numpy import bool_
 
 
 class PS1BandNames(TypedDict):
@@ -54,11 +56,10 @@ class PS1Phot(AbstractPhotometricSurvey):
             frame="icrs",
         )
 
-    def get_star_mask(self) -> npt.NDArray[np.bool_]:
+    def get_star_mask(self) -> npt.NDArray[bool_]:
         """Star/galaxy separation for PS1.
 
-        See:
-        https://outerspace.stsci.edu/display/PANSTARRS/How+to+separate+stars+and+galaxies
+        See: https://outerspace.stsci.edu/display/PANSTARRS/How+to+separate+stars+and+galaxies
 
         Returns
         -------

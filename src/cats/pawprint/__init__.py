@@ -1,3 +1,5 @@
+"""Pawprint module."""
+
 from __future__ import annotations
 
 from . import _core, _footprint

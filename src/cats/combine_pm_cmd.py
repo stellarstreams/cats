@@ -1,39 +1,26 @@
+"""Combine PM and CMD cuts."""
+
 from __future__ import annotations
 
+from typing import Any
+
 import astropy.table as at
-import matplotlib as mpl
+import matplotlib.pyplot as plt
 import pandas as pd
 
 from cats.cmd.CMD import Isochrone
 from cats.pawprint.pawprint import Footprint2D, Pawprint
 
-plt = mpl.pyplot
-
-plt.rc(
-    "xtick",
-    top=True,
-    direction="in",
-    labelsize=15,
-)
-plt.rc(
-    "ytick",
-    right=True,
-    direction="in",
-    labelsize=15,
-)
-plt.rc(
-    "font",
-    family="Arial",
-)
+plt.rc("xtick", top=True, direction="in", labelsize=15)
+plt.rc("ytick", right=True, direction="in", labelsize=15)
+plt.rc("font", family="Arial")
 
 
 def generate_isochrone_vertices(
-    cat,
-    sky_poly,
-    pm_poly,
-    config,
-):
-    """
+    cat: Any, sky_poly: Any, pm_poly: Any, config: Any
+) -> Any:
+    """Generate Isochrone Vertices.
+
     Use the generated class to make a new polygon for the given catalog in CMD
     space given a sky and PM polygon.
     """
@@ -64,24 +51,18 @@ def generate_isochrone_vertices(
 
 
 def generate_pm_vertices(
-    cat,
-    sky_poly,
-    cmd_poly,
-    config,
-):
-    """
+    cat: Any, sky_poly: Any, cmd_poly: Any, config: Any
+) -> list[list[float]]:
+    """Generate Proper Motion Vertices.
+
     Use the generated class to make a new polygon for the given catalog in PM
     space given a sky and CMD polygon.
     """
-    return [
-        [-7.0, 0.0],
-        [-5.0, 0.0],
-        [-5.0, 1.6],
-        [-7.0, -1.6],
-    ]
+    return [[-7.0, 0.0], [-5.0, 0.0], [-5.0, 1.6], [-7.0, -1.6]]
 
 
-def load_sky_region(fn):
+def load_sky_region(fn: Any) -> tuple[list[float], list[float]]:
+    """Load Sky Region."""
     sky_print = [
         [-5, -2],
         [+5, -2],
@@ -93,6 +74,7 @@ def load_sky_region(fn):
 
 
 def main() -> int:
+    """Run Script."""
     # load in config file, catalog from filename
     config = pd.read_json("config.json")
     cat = at.Table.read(config.streaminfo.cat_fn)

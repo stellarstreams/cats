@@ -123,33 +123,22 @@ disallow_incomplete_defs = true
 src = ["src"]
 
 [tool.ruff.lint]
-extend-select = [
-  "B",           # flake8-bugbear
-  "I",           # isort
-  "ARG",         # flake8-unused-arguments
-  "C4",          # flake8-comprehensions
-  "EM",          # flake8-errmsg
-  "ICN",         # flake8-import-conventions
-  "G",           # flake8-logging-format
-  "PGH",         # pygrep-hooks
-  "PIE",         # flake8-pie
-  "PL",          # pylint
-  "PT",          # flake8-pytest-style
-  "PTH",         # flake8-use-pathlib
-  "RET",         # flake8-return
-  "RUF",         # Ruff-specific
-  "SIM",         # flake8-simplify
-  "T20",         # flake8-print
-  "UP",          # pyupgrade
-  "YTT",         # flake8-2020
-  "EXE",         # flake8-executable
-  "NPY",         # NumPy specific rules
-  "PD",          # pandas-vet
-]
+extend-select = ["ALL"]
 ignore = [
+  "ANN101",  # Missing type annotation for self in method
+  "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed in `**kwargs`
+  "BLE001",  # Using bare `except`
   "COM812",  # Missing trailing comma
+  "D107",  # Missing docstring in `__init__`
+  "D203",  # 1 blank line required before class docstring
+  "D213",  # Multi-line docstring summary should start at the second line
+  "ERA001",  # Commented-out code
+  "FIX002",  # Line contains TODO
+  "N8",  # Naming conventions
   "PD",  # Pandas
   "PLR",    # Design related pylint codes
+  "TD002",  # Missing author in TODO
+  "TD003",  # Missing issue link on the line following this TODO
   # TODO: fix these and remove
   "ARG001",  # Unused function argument `X`
   "ARG003",  # Unused method argument `X`
@@ -163,7 +152,8 @@ isort.required-imports = ["from __future__ import annotations"]
 # typing-modules = ["cats._compat.typing"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["T20"]
+"docs/conf.py" = ["A001", "D100", "INP001"]
+"tests/**" = ["ANN", "D1", "INP", "S101", "T20"]
 "noxfile.py" = ["T20"]
 "__init__.py" = ["F403"]
 # TODO: fix these and remove
