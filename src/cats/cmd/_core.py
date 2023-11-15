@@ -318,16 +318,24 @@ class Isochrone:
         Code written by Nora Shipp and adapted by Kiyan Tavangar
         """
         if self.phot_survey == "PS1":
-            err = lambda x: 0.00363355415 + np.exp((x - 23.9127145) / 1.09685211)
+            offset = 0.00363355415
+            mu = 23.9127145
+            scale = 1.09685211
+
         elif self.phot_survey == "DES_DR2":
             # from DES_DR1 in Nora's code (I think should apply here as well)
-            err = lambda x: 0.0010908679647672335 + np.exp(
-                (x - 27.091072029215375) / 1.0904624484538419
-            )
+            offset = 0.0010908679647672335
+            mu = 27.091072029215375
+            scale = 1.0904624484538419
+
         else:
             # assume PS1 while I wait for Gaia photometry
-            err = lambda x: 0.00363355415 + np.exp((x - 23.9127145) / 1.09685211)
-            # err=lambda x: 0*x
+            offset = 0.00363355415
+            mu = 23.9127145
+            scale = 1.09685211
+
+        def err(x):
+            return offset + np.exp((x - mu) / scale)
 
         return scale_err * err(self.mag) + base_tol
 

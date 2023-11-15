@@ -153,7 +153,6 @@ ignore = [
   # TODO: fix these and remove
   "ARG001",  # Unused function argument `X`
   "ARG003",  # Unused method argument `X`
-  "E731",  # Do not assign a `lambda` expression, use a `def`
   "EM101",  # Exception must not use a string literal, assign to variable first
   "F821",  # Undefined name `X`
   "PT018",  # Assertion should be broken down into multiple parts
