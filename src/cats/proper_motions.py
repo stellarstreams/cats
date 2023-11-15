@@ -321,9 +321,7 @@ class ProperMotionSelection:
                 self.data[mag] - self.dist_mod_correct,
             )
         ).T
-        cmd_mask = self.pawprint.cmdprint.inside_footprint(cmd_points)
-
-        return cmd_mask
+        return self.pawprint.cmdprint.inside_footprint(cmd_points)
 
     def initial_masks(self):
         """
@@ -512,11 +510,7 @@ class ProperMotionSelection:
         )
 
         pm_points = np.vstack((pm1_data_corrected, pm2_data_corrected)).T
-        pm_mask = pm_corrected_poly_patch.get_path().contains_points(pm_points)
-        # self.pawprint.pmprint = Footprint2D(pm_vert_corrected, footprint_type='cartesian')
-        # self.pm_mask = self.pawprint.pmprint.inside_footprint(pm_points)
-
-        return pm_mask
+        return pm_corrected_poly_patch.get_path().contains_points(pm_points)
 
     def plot_pms_scatter(
         self,

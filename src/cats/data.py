@@ -58,4 +58,4 @@ def make_astro_photo_joined_data(gaia_data, phot_data, track6d):
     joined = at.join(joined, phot_min, keys="source_id")
     joined = at.unique(joined, keys="source_id")
 
-    return joined
+    return joined  # noqa: RET504

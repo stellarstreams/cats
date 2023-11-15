@@ -73,13 +73,12 @@ def generate_pm_vertices(
     Use the generated class to make a new polygon for the given catalog in PM
     space given a sky and CMD polygon.
     """
-    pm_poly = [
+    return [
         [-7.0, 0.0],
         [-5.0, 0.0],
         [-5.0, 1.6],
         [-7.0, -1.6],
     ]
-    return pm_poly
 
 
 def load_sky_region(fn):
