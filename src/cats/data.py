@@ -20,10 +20,11 @@ def make_astro_photo_joined_data(gaia_data, phot_data, track6d):
 
     track = track6d.track.transform_to(stream_fr)
     if np.all(track.distance.value == 0):
-        raise ValueError(
+        msg = (
             "A distance track is required: this stream has no distance information in "
             "the galstreams track."
         )
+        raise ValueError(msg)
 
     # interpolator to get predicted distance from phi1
     dist_interp = sci.InterpolatedUnivariateSpline(
