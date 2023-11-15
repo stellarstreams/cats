@@ -10,6 +10,7 @@ __all__ = [
     # Constants
     "__version__",
     # Modules
+    "data",
     "frames",
 ]
 
