@@ -147,6 +147,7 @@ extend-select = [
   "PD",          # pandas-vet
 ]
 ignore = [
+  "COM812",  # Missing trailing comma
   "PD",  # Pandas
   "PLR",    # Design related pylint codes
   # TODO: fix these and remove
@@ -169,6 +170,7 @@ isort.required-imports = ["from __future__ import annotations"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["T20"]
 "noxfile.py" = ["T20"]
+"__init__.py" = ["F403"]
 # TODO: fix these and remove
 "src/cats/pawprint/tests/mwe.py" = ["F821"]
 
