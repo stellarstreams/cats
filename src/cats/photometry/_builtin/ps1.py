@@ -1,3 +1,5 @@
+"""Pan-STARRS1 Photometric Survey."""
+
 from __future__ import annotations
 
 __all__ = ["PS1Phot"]
@@ -15,6 +17,8 @@ if TYPE_CHECKING:
 
 
 class PS1BandNames(TypedDict):
+    """PS1 band names."""
+
     gMeanPSFMag: str
     rMeanPSFMag: str
     iMeanPSFMag: str
@@ -23,6 +27,8 @@ class PS1BandNames(TypedDict):
 
 
 class PS1ExtinctionCoeffs(TypedDict):
+    """PS1 extinction coefficients."""
+
     g: str
     r: str
     i: str
@@ -31,6 +37,8 @@ class PS1ExtinctionCoeffs(TypedDict):
 
 
 class PS1Phot(AbstractPhotometricSurvey):
+    """Pan-STARRS1 Photometric Survey."""
+
     band_names: ClassVar[PS1BandNames] = {
         "gMeanPSFMag": "g",
         "rMeanPSFMag": "r",

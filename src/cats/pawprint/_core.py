@@ -1,3 +1,5 @@
+"""Core classes for pawprint."""
+
 from __future__ import annotations
 
 __all__ = ["Pawprint"]
@@ -11,6 +13,8 @@ import astropy.units as u
 import galstreams as gst
 from astropy.coordinates import SkyCoord
 from gala.coordinates import GreatCircleICRSFrame
+
+from cats.pawprint._footprint import Footprint2D
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -79,8 +83,9 @@ class Pawprint(dict):
 
     @classmethod
     def from_file(cls: type[Self], fname: str) -> Self:
+        """Create a pawprint from an asdf file."""
         data = {}
-        with asdf.open("fname") as a:
+        with asdf.open(fname) as a:
             # first transfer the stuff that goes directly
             data["stream_name"] = a["stream_name"]
             data["pawprint_ID"] = a["pawprint_ID"]
@@ -115,6 +120,8 @@ class Pawprint(dict):
     def pawprint_from_galstreams(
         cls: type[Self], stream_name: str, pawprint_ID: Any, width: float
     ) -> Self:
+        """Create a pawprint from galstreams data."""
+
         def _get_stream_frame_from_file(summary_file: str) -> GreatCircleICRSFrame:
             t = apt.QTable.read(summary_file)
 
@@ -162,7 +169,7 @@ class Pawprint(dict):
         try:
             # one standard deviation on each side (is this wide enough?)
             data["width"] = 2 * data["track"].track_width["width_phi2"]
-        except Exception:
+        except KeyError:
             data["width"] = width
         data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
             width=data["width"], phi2_offset=0.0 * u.deg
@@ -183,6 +190,7 @@ class Pawprint(dict):
     def add_cmd_footprint(
         self, new_footprint: Any, color: Any, mag: Any, name: str
     ) -> None:
+        """Add a color-magnitude diagram footprint."""
         if self.cmd_filters is None:
             self.cmd_filters = dict((name, [color, mag]))
             self.cmdprint = dict((name, new_footprint))
@@ -191,14 +199,24 @@ class Pawprint(dict):
             self.cmdprint[name] = new_footprint
 
     def add_pm_footprint(self, new_footprint: Any, name: str) -> None:
+        """Add a proper motion footprint."""
         if self.pmprint is None:
             self.pmprint = dict((name, new_footprint))
         else:
             self.pmprint[name] = new_footprint
 
     def save_pawprint(self) -> None:
-        # WARNING this doesn't save the track yet - need schema
-        # WARNING the stream frame doesn't save right either
+        """Save the pawprint to an asdf file.
+
+        .. warning::
+
+            This doesn't save the track yet.
+
+        .. todo::
+
+            Make an ASDF schema for the track and the frame, and then the
+            pawprint.
+        """
         fname = self.stream_name + self.pawprint_ID + ".asdf"
         tree = {
             "stream_name": self.stream_name,

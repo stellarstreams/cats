@@ -1,3 +1,5 @@
+"""Footprint class."""
+
 from __future__ import annotations
 
 __all__ = ["Footprint2D"]
@@ -43,10 +45,13 @@ class Footprint2D(dict):
         self.footprint_type = footprint_type
         self.footprint = mpl_path(self.vertices)
 
+    # ===============================================================
+
     @classmethod
     def from_vertices(
         cls: type[Self], vertex_coordinates: Any, footprint_type: Any
     ) -> Self:
+        """Initialize from vertices."""
         return cls(vertex_coordinates, footprint_type)
 
     @classmethod
@@ -58,40 +63,48 @@ class Footprint2D(dict):
         max2: float,
         footprint_type: str,
     ) -> Self:
-        vertices = cls.get_vertices_from_box(min1, max1, min2, max2)
+        """Initialize from a box."""
+        vertices = get_vertices_from_box(min1, max1, min2, max2)
         return cls(vertices, footprint_type)
 
     @classmethod
     def from_file(cls: type[Self], fname: str) -> Self:
+        """Initialize from a file."""
         with apt.Table.read(fname) as t:
             vertices = t["vertices"]
             footprint_type = t["footprint_type"]
         return cls(vertices, footprint_type)
 
-    def get_vertices_from_box(
-        self, min1: float, max1: float, min2: float, max2: float
-    ) -> list[list[float]]:
-        return [[min1, min2], [min1, max2], [max1, min2], [max1, max2]]
+    # ===============================================================
 
     def inside_footprint(self, data: SkyCoord | Any) -> NDArray[bool_] | None:
+        """Check if a point is inside the footprint."""
         if isinstance(data, SkyCoord):
             if self.stream_frame is None:
                 print("can't!")
                 return None
-            else:
-                pts = np.array(
-                    [
-                        data.transform_to(self.stream_frame).phi1.value,
-                        data.transform_to(self.stream_frame).phi2.value,
-                    ]
-                ).T
-                return self.footprint.contains_points(pts)
-        else:
-            return self.footprint.contains_points(data)
+
+            pts = np.array(
+                [
+                    data.transform_to(self.stream_frame).phi1.value,
+                    data.transform_to(self.stream_frame).phi2.value,
+                ]
+            ).T
+            return self.footprint.contains_points(pts)
+
+        return self.footprint.contains_points(data)
 
     def export(self) -> dict[str, Any]:
+        """Export the footprint to a dictionary."""
         data = {}
         data["stream_frame"] = self.stream_frame
         data["vertices"] = self.vertices
         data["footprint_type"] = self.footprint_type
         return data
+
+
+def get_vertices_from_box(
+    min1: float, max1: float, min2: float, max2: float
+) -> list[list[float]]:
+    """Get vertices from a box."""
+    return [[min1, min2], [min1, max2], [max1, min2], [max1, max2]]

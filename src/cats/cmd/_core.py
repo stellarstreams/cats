@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import astropy.units as u
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
-from astropy.convolution import Gaussian1DKernel, convolve
 from astropy.coordinates import Distance
-from isochrones.mist import MIST_Isochrone
+from isochrones.mist import MIST_Isochrone  # pylint: disable=import-error
 from matplotlib.patches import PathPatch
 from scipy.interpolate import InterpolatedUnivariateSpline, interp1d
 from scipy.signal import correlate2d
@@ -22,7 +21,6 @@ from cats.pawprint._footprint import Footprint2D
 
 if TYPE_CHECKING:
     from matplotlib.figure import Figure
-    from numpy.typing import NDArray
 
     from cats.pawprint import Pawprint
 
@@ -271,7 +269,9 @@ class Isochrone:
         signal = signal.T
 
         ccor2d = correlate2d(self.CMD_data, signal)
-        y, x = np.unravel_index(np.argmax(ccor2d), ccor2d.shape)
+        y, x = np.unravel_index(
+            np.argmax(ccor2d), ccor2d.shape
+        )  # pylint: disable=W0632
         self.x_shift = (x - len(ccor2d[0]) / 2.0) * (self.x_edges[1] - self.x_edges[0])
         self.y_shift = (y - len(ccor2d) / 2.0) * (self.y_edges[1] - self.y_edges[0])
 
@@ -395,9 +395,6 @@ class Isochrone:
             self.color[ind] + coloff + tol,
             fill_value="extrapolate",
         )
-        # iso_model = interp1d(
-        #     self.mag[ind] + magoff, self.color[ind] + coloff, fill_value="extrapolate"
-        # )
 
         hb_print, self.hb_mask = self.make_hb_print()
 
@@ -413,6 +410,7 @@ class Isochrone:
         return cmd_footprint, self.cmd_mask, hb_print, self.hb_mask, self.pawprint
 
     def make_hb_print(self) -> None:
+        """Make the horizontal branch polygon mask."""
         # probably want to incorporate this into cmdprint and have two
         # discontinuous regions
         if self.phot_survey == "PS1":
@@ -568,68 +566,67 @@ class Isochrone:
 
         return fig
 
-    def convolve_1d(self, probabilities: NDArray, mag_err: NDArray) -> NDArray:
-        """1D Gaussian convolution.
+    # def convolve_1d(self, probabilities: NDArray, mag_err: NDArray) -> NDArray:
+    #     """1D Gaussian convolution.
 
-        Parameters
-        ----------
-        probabilities : NDArray
-            Probability of the magnitudes.
-        mag_err : NDArray
-            Uncertainty in the magnitudes.
-        """
-        self.probabilities = probabilities
-        self.mag_err = mag_err
+    #     Parameters
+    #     ----------
+    #     probabilities : NDArray
+    #         Probability of the magnitudes.
+    #     mag_err : NDArray
+    #         Uncertainty in the magnitudes.
+    #     """
+    #     self.probabilities = probabilities
+    #     self.mag_err = mag_err
 
-        sigma = mag_err / self.ybin  # error in pixel units
-        kernel = Gaussian1DKernel(sigma)
-        convolved = convolve(probabilities, kernel)
+    #     sigma = mag_err / self.ybin  # error in pixel units
+    #     kernel = Gaussian1DKernel(sigma)
+    #     convolved = convolve(probabilities, kernel)
 
-        self.convolved = convolved
+    #     self.convolved = convolved
 
-    def convolve_errors(
-        self,
-        g_errors: Callable[[NDArray], NDArray],
-        r_errors: Callable[[NDArray], NDArray],
-        intr_err: float = 0.1,
-    ) -> None:
-        """1D Gaussian convolution of the data with uncertainties.
+    # def convolve_errors(
+    #     self,
+    #     probabilities: NDArray,
+    #     g_errors: Callable[[NDArray], NDArray],
+    #     r_errors: Callable[[NDArray], NDArray],
+    #     intr_err: float = 0.1,
+    # ) -> None:
+    #     """1D Gaussian convolution of the data with uncertainties.
 
-        Parameters
-        ----------
-        g_errors, r_errors : Callable[[ndarray], ndarray]
-            g, r magnitude uncertainties.
-        intr_err:
-            Free to set. Default is 0.1.
-        """
-        for i in range(len(probabilities)):
-            probabilities[i] = convolve_1d(
-                probabilities[i],
-                np.sqrt(
-                    g_errors(self.x_bins[i]) ** 2
-                    + r_errors(self.y_bins[i]) ** 2
-                    + intr_err**2
-                ),
-                sel.fx_bins[1] - self.x_bins[0],
-            )
+    #     Parameters
+    #     ----------
+    #     probabilities : NDArray
+    #         Probability of the magnitudes.
+    #     g_errors, r_errors : Callable[[ndarray], ndarray]
+    #         g, r magnitude uncertainties.
+    #     intr_err:
+    #         Free to set. Default is 0.1.
+    #     """
+    #     for i in range(len(probabilities)):
+    #         probabilities[i] = self.convolve_1d(
+    #             probabilities[i],
+    #             np.sqrt(
+    #                 g_errors(self.x_bins[i]) ** 2
+    #                 + r_errors(self.y_bins[i]) ** 2
+    #                 + intr_err**2
+    #             ),
+    #             self.fx_bins[1] - self.x_bins[0],
+    #         )
 
-        self.probabilities = probabilities
+    #     self.probabilities = probabilities
 
-    def errFn(self) -> None:
-        """Generate the errors for the magnitudes."""
-        gerrs = np.zeros(len(self.y_bins))
-        rerrs = np.zeros(len(self.x_bins))
+    # TODO: remove this function?
+    # def errFn(self) -> None:
+    #     """Generate the errors for the magnitudes."""
+    #     g0 = self.cat["g0"]
+    #     r0 = self.cat["r0"]
+    #     yhb = self.ybin / 2  # half bin size
+    #     xhb = self.xbin / 2
+    #     gerrs = np.array([np.nanmedian(g0[abs(g0 - yb) < yhb]) for yb in self.y_bins])
+    #     rerrs = np.array(  # TODO: are we sure this is right?
+    #         [np.nanmedian(r0[abs(g0 - xb) < xhb]) for xb in self.x_bins]
+    #     )
 
-        for i in range(len(self.y_bins)):
-            gerrs[i] = np.nanmedian(
-                self.cat["g0"][abs(self.cat["g0"] - self.y_bins[i]) < self.ybin / 2]
-            )
-            rerrs[i] = np.nanmedian(
-                self.cat["r0"][abs(self.cat["g0"] - self.x_bins[i]) < self.xbin / 2]
-            )
-
-        gerrs = interp1d(self.y_bins, gerrs, fill_value="extrapolate")
-        rerrs = interp1d(self.x_bins, rerrs, fill_value="extrapolate")
-
-        self.gerrs = gerrs
-        self.rerrs = rerrs
+    #     self.gerrs = interp1d(self.y_bins, gerrs, fill_value="extrapolate")
+    #     self.rerrs = interp1d(self.x_bins, rerrs, fill_value="extrapolate")

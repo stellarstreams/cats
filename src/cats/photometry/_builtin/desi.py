@@ -1,3 +1,5 @@
+"""DES year 6 Photometric Survey."""
+
 from __future__ import annotations
 
 __all__ = ["DESY6Phot"]
@@ -11,20 +13,28 @@ from astropy.table import QTable
 from cats.photometry._base import AbstractPhotometricSurvey
 
 if TYPE_CHECKING:
+    from dustmaps.map_base import DustMap
     from numpy import bool_
+    from numpy.typing import NDArray
 
 
 class DESY6BandNames(TypedDict):
+    """DESY6 band names."""
+
     WAVG_MAG_PSF_G: str
     WAVG_MAG_PSF_R: str
 
 
 class DESY6ExtinctionCoeffs(TypedDict):
+    """DESY6 extinction coefficients."""
+
     g: float
     r: float
 
 
 class DESY6Phot(AbstractPhotometricSurvey):
+    """DESY6 Photometric Survey."""
+
     band_names: ClassVar[DESY6BandNames] = {
         "WAVG_MAG_PSF_G": "g",
         "WAVG_MAG_PSF_R": "r",
@@ -40,7 +50,7 @@ class DESY6Phot(AbstractPhotometricSurvey):
         return (self.data["EXT_FITVD"] >= 0) & (self.data["EXT_FITVD"] < 2)
 
     def get_ext_corrected_phot(
-        self, dustmaps_cls: tuple[Dustmap] | None = None
+        self, dustmaps_cls: tuple[DustMap] | None = None
     ) -> QTable:
         if dustmaps_cls is None:
             dustmaps_cls = self.dustmaps_cls
@@ -49,17 +59,16 @@ class DESY6Phot(AbstractPhotometricSurvey):
         ebv = dustmaps_cls().query(c)
 
         tbl = QTable()
-        new_band_names = []
         for short_name in self.band_names.values():
+            # Compute extinction correction
             Ax = self.extinction_coeffs[short_name] * ebv
+
+            # Apply correction
             tbl[f"A_{short_name}"] = Ax
             tbl[f"{short_name}0"] = self.data[f"BDF_MAG_{short_name.upper()}_CORRECTED"]
 
-            #
-            new_band_names.append(f"{short_name}0")
-
         # Metadata
-        tbl.meta["band_names"] = new_band_names
+        tbl.meta["band_names"] = [f"{k}0" for k in self.band_names.values()]
         tbl.meta["dustmap"] = dustmaps_cls.__class__.__name__
 
         return tbl

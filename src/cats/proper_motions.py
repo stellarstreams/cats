@@ -11,10 +11,10 @@ from astropy.modeling import fitting, models
 from matplotlib.colors import LogNorm
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.interpolate import InterpolatedUnivariateSpline as IUS
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull  # pylint: disable=no-name-in-module
 
 from cats.inputs import stream_inputs as inputs
-from cats.pawprint.pawprint import Footprint2D
+from cats.pawprint._footprint import Footprint2D
 
 if TYPE_CHECKING:
     from matplotlib.cm import ScalarMappable
@@ -47,7 +47,7 @@ def rough_pm_poly(
     track_pm2_max = np.max(track.pm_phi2.value)
 
     # make rectangular box around this region with an extra 2 mas/yr on each side
-    rough_pm_poly = np.array(
+    poly = np.array(
         [
             [track_pm1_min - buffer, track_pm2_min - buffer],
             [track_pm1_min - buffer, track_pm2_max + buffer],
@@ -56,7 +56,7 @@ def rough_pm_poly(
         ]
     )
 
-    pawprint.pmprint = Footprint2D(rough_pm_poly, footprint_type="cartesian")
+    pawprint.pmprint = Footprint2D(poly, footprint_type="cartesian")
 
     pm_points = np.vstack((data["pm_phi1_cosphi2_unrefl"], data["pm_phi2_unrefl"])).T
     rough_pm_mask = pawprint.pmprint.inside_footprint(pm_points)
@@ -192,12 +192,9 @@ class ProperMotionSelection:
                 self.data, x_width=3.0, y_width=3.0, draw_histograms=True
             )
             print(
-                "Post-fitting (pm1_mean, pm2_mean, pm1_std, pm2_std): {} \n".format(
-                    peak_locations
-                )
+                "Post-fitting (pm1_mean, pm2_mean, pm1_std, pm2_std): "
+                f"{peak_locations} \n"
             )
-        #         except:
-        #             print('Skipping peak pm fitting')
 
         ################################################
         ## Ellipse-like proper motion cut in PM space ##
@@ -248,8 +245,6 @@ class ProperMotionSelection:
             self.pm2_mask,
         ) = self.build_pm12_polys_and_masks()
         self.mask = self.pm1_mask & self.pm2_mask & self.spatial_mask_on & self.CMD_mask
-
-        return
 
     def from_galstreams(self) -> tuple[IUS, IUS, IUS, IUS]:
         """Get tracks from galstreams with splines."""
@@ -751,12 +746,12 @@ class ProperMotionSelection:
         _colorbar(im3)
 
         if (pms[0] is None) or (pms[1] is None):
-            ax1.axvline(self.best_pm[0], ls="--", c="k", lw=1)
-            ax2.axvline(self.best_pm[0], ls="--", c="k", lw=1)
-            ax3.axvline(self.best_pm[0], ls="--", c="k", lw=1)
-            ax1.axhline(self.best_pm[1], ls="--", c="k", lw=1)
-            ax2.axhline(self.best_pm[1], ls="--", c="k", lw=1)
-            ax3.axhline(self.best_pm[1], ls="--", c="k", lw=1)
+            ax1.axvline(self.best_pm_phi1_mean, ls="--", c="k", lw=1)
+            ax2.axvline(self.best_pm_phi1_mean, ls="--", c="k", lw=1)
+            ax3.axvline(self.best_pm_phi1_mean, ls="--", c="k", lw=1)
+            ax1.axhline(self.best_pm_phi2_mean, ls="--", c="k", lw=1)
+            ax2.axhline(self.best_pm_phi2_mean, ls="--", c="k", lw=1)
+            ax3.axhline(self.best_pm_phi2_mean, ls="--", c="k", lw=1)
         else:
             ax1.axvline(pms[0], ls="--", c="k", lw=1)
             ax2.axvline(pms[0], ls="--", c="k", lw=1)
@@ -905,7 +900,7 @@ class ProperMotionSelection:
 
         # draw proper motions of the on-stream, off-stream and residual histogram
         if draw_histograms:
-            fig, axes = plt.subplots(
+            _, axes = plt.subplots(
                 1, 3, figsize=(15, 5), sharex=True, sharey=True, constrained_layout=True
             )
 

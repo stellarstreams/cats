@@ -1,3 +1,5 @@
+"""Base class for photometric surveys."""
+
 from __future__ import annotations
 
 __all__ = ["AbstractPhotometricSurvey"]
@@ -54,6 +56,7 @@ class AbstractPhotometricSurvey(metaclass=abc.ABCMeta):
 
     @classmethod
     def from_tablelike(cls: type[Self], data: str | Table) -> Self:
+        """Initialize from a table-like object."""
         if isinstance(data, str):
             return cls(QTable.read(data))
         return cls(data)

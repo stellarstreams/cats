@@ -1,3 +1,5 @@
+"""Gaia DR3 Photometric Survey."""
+
 from __future__ import annotations
 
 __all__ = ["GaiaDR3Phot"]
@@ -18,12 +20,16 @@ if TYPE_CHECKING:
 
 
 class GaiaDR3BandNames(TypedDict):
+    """Gaia DR3 band names."""
+
     phot_g_mean_mag: str
     phot_bp_mean_mag: str
     phot_rp_mean_mag: str
 
 
 class GaiaDR3Phot(AbstractPhotometricSurvey):
+    """Gaia DR3 Photometric Survey."""
+
     band_names: ClassVar[GaiaDR3BandNames] = {
         "phot_g_mean_mag": "G",
         "phot_bp_mean_mag": "BP",

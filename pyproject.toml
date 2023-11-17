@@ -29,16 +29,17 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-  "numpy",
-  "scipy>1.10",
+  "asdf",
+  "dustmaps",
   "astropy",
-  "matplotlib",
+  "astroquery",
   "gala",
   "galstreams",
+  "matplotlib",
+  "numba",
+  "numpy",
   "pyia",
-  "astroquery",
-  "dustmaps",
-  "asdf",
+  "scipy>1.10",
   "ugali",
 ]
 
@@ -81,6 +82,7 @@ addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
 xfail_strict = true
 filterwarnings = [
   "error",
+  "ignore:numpy.ndarray size changed",
 ]
 log_cli_level = "INFO"
 testpaths = [
@@ -153,6 +155,7 @@ isort.required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.per-file-ignores]
 "docs/conf.py" = ["A001", "D100", "INP001"]
+"scripts/**" = ["INP001"]
 "tests/**" = ["ANN", "D1", "INP", "S101", "T20"]
 "noxfile.py" = ["T20"]
 "__init__.py" = ["F403"]
@@ -168,7 +171,11 @@ similarities.ignore-imports = "yes"
 messages_control.disable = [
   "design",
   "fixme",
-  "line-too-long",
-  "missing-module-docstring",
   "wrong-import-position",
+  # TODO: fix these and remove
+  "attribute-defined-outside-init",
+  "duplicate-code",
+  "invalid-name",
+  "no-member",
+  "unused-variable",
 ]

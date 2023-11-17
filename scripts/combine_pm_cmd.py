@@ -8,8 +8,8 @@ import astropy.table as at
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from cats.cmd.CMD import Isochrone
-from cats.pawprint.pawprint import Footprint2D, Pawprint
+from cats.cmd import Isochrone
+from cats.pawprint import Footprint2D, Pawprint
 
 plt.rc("xtick", top=True, direction="in", labelsize=15)
 plt.rc("ytick", right=True, direction="in", labelsize=15)
@@ -50,9 +50,7 @@ def generate_isochrone_vertices(
     return o.simpleSln(0.1, 15, mass_thresh=0.83)[0]
 
 
-def generate_pm_vertices(
-    cat: Any, sky_poly: Any, cmd_poly: Any, config: Any
-) -> list[list[float]]:
+def generate_pm_vertices() -> list[list[float]]:
     """Generate Proper Motion Vertices.
 
     Use the generated class to make a new polygon for the given catalog in PM
@@ -80,7 +78,7 @@ def main() -> int:
     cat = at.Table.read(config.streaminfo.cat_fn)
 
     # load in file with the sky footprint.
-    sky_poly, bg_poly = load_sky_region(config.streaminfo.sky_print)
+    sky_poly, _ = load_sky_region(config.streaminfo.sky_print)
 
     # have an initial selection for the PM region that is very wide
     # this could also be stored in a footprint

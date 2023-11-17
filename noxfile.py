@@ -10,7 +10,7 @@ import nox
 
 DIR = Path(__file__).parent.resolve()
 
-nox.options.sessions = ["lint", "tests"]  # "pylint",
+nox.options.sessions = ["lint", "pylint", "tests"]
 
 
 @nox.session
