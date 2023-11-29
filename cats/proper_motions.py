@@ -574,9 +574,9 @@ class ProperMotionSelection:
 
         ax[0].set_xlim(-20, 20)
         ax[0].set_ylim(-20, 20)
-        ax[0].set_xlabel("$\mu_{\phi_1}$ [mas yr$^{-1}$]")
-        ax[0].set_ylabel("$\mu_{\phi_2}$ [mas yr$^{-1}$]")
-        ax[0].set_title("Stream", fontsize="medium")
+        ax[0].set_xlabel("$\mu_{\phi_1}$ [mas yr$^{-1}$]", fontsize=20)
+        ax[0].set_ylabel("$\mu_{\phi_2}$ [mas yr$^{-1}$]", fontsize=20)
+        ax[0].set_title("Stream",  fontsize=20)
 
         # resize and fix column name
         scatter_size = 1.0 / data_off["pmra_error"]
@@ -594,9 +594,9 @@ class ProperMotionSelection:
 
         ax[1].set_xlim(-20, 20)
         ax[1].set_ylim(-20, 20)
-        ax[1].set_xlabel("$\mu_{\phi_1}$ [mas yr$^{-1}$]")
-        ax[1].set_ylabel("$\mu_{\phi_2}$ [mas yr$^{-1}$]")
-        ax[1].set_title("Off stream", fontsize="medium")
+        ax[1].set_xlabel("$\mu_{\phi_1}$ [mas yr$^{-1}$]", fontsize=20)
+        ax[1].set_ylabel("$\mu_{\phi_2}$ [mas yr$^{-1}$]", fontsize=20)
+        ax[1].set_title("Off stream", fontsize=20)
 
         fig.tight_layout()
 
@@ -890,13 +890,17 @@ class ProperMotionSelection:
             # axes[2].set_xlim(xmin,xmax)
             # axes[2].set_ylim(ymin,ymax)
 
-            for ax in axes[:2]:
+            for ax in axes[:3]:
                 ax.plot(
                     self.galstream_pm_phi1_cosphi2, self.galstream_pm_phi2, color="cyan"
                 )
 
                 ax.set_xlabel(r"$\mu_{\phi_1}$", fontsize=20)
             axes[0].set_ylabel(r"$\mu_{\phi_2}$", fontsize=20)
+            
+            axes[0].set_title(r"Onstream", fontsize=20)
+            axes[1].set_title(r"Offstream", fontsize=20)
+            axes[2].set_title(r"Residual", fontsize=20)
 
         self.best_pm_phi1_mean = pm_x_cen
         self.best_pm_phi2_mean = pm_y_cen

@@ -252,12 +252,12 @@ class Pawprint(dict):
             track_file=track_file,
             summary_file=summary_file,
         )
-        try:
-            data["width"] = (
-                2 * data["track"].track_width["width_phi2"]
-            )  # one standard deviation on each side (is this wide enough?)
-        except:
-            data["width"] = width
+        # try:
+        #     data["width"] = (
+        #         2 * data["track"].track_width["width_phi2"]
+        #     )  # one standard deviation on each side (is this wide enough?)
+        # except:
+        data["width"] = width # if galstreams gets widths, uncomment above code
         data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
             width=data["width"], phi2_offset=0.0 * u.deg
         )
