@@ -1,93 +1,36 @@
+"""Core classes for pawprint."""
+
 from __future__ import annotations
 
+__all__ = ["Pawprint"]
+
 import pathlib
+from typing import TYPE_CHECKING, Any
 
 import asdf
 import astropy.table as apt
 import astropy.units as u
 import galstreams as gst
-import numpy as np
 from astropy.coordinates import SkyCoord
 from gala.coordinates import GreatCircleICRSFrame
-from matplotlib.path import Path as mpl_path
 
-# class densityClass: #TODO: how to represent densities?
+from cats.pawprint._footprint import Footprint2D
 
-
-class Footprint2D(dict):
-    def __init__(self, vertex_coordinates, footprint_type, stream_frame=None):
-        if footprint_type == "sky":
-            if isinstance(vertex_coordinates, SkyCoord):
-                vc = vertex_coordinates
-            else:
-                vc = SkyCoord(vertex_coordinates)
-            self.edges = vc
-            self.vertices = np.array(
-                [vc.transform_to(stream_frame).phi1, vc.transform_to(stream_frame).phi2]
-            ).T
-
-        elif footprint_type == "cartesian":
-            self.edges = vertex_coordinates
-            self.vertices = vertex_coordinates
-
-        self.stream_frame = stream_frame
-        self.footprint_type = footprint_type
-        self.footprint = mpl_path(self.vertices)
-
-    @classmethod
-    def from_vertices(cls, vertex_coordinates, footprint_type):
-        return cls(vertex_coordinates, footprint_type)
-
-    @classmethod
-    def from_box(cls, min1, max1, min2, max2, footprint_type):
-        vertices = cls.get_vertices_from_box(min1, max1, min2, max2)
-        return cls(vertices, footprint_type)
-
-    @classmethod
-    def from_file(cls, fname):
-        with apt.Table.read(fname) as t:
-            vertices = t["vertices"]
-            footprint_type = t["footprint_type"]
-        return cls(vertices, footprint_type)
-
-    def get_vertices_from_box(self, min1, max1, min2, max2):
-        return [[min1, min2], [min1, max2], [max1, min2], [max1, max2]]
-
-    def inside_footprint(self, data):
-        if isinstance(data, SkyCoord):
-            if self.stream_frame is None:
-                print("can't!")
-                return None
-            else:
-                pts = np.array(
-                    [
-                        data.transform_to(self.stream_frame).phi1.value,
-                        data.transform_to(self.stream_frame).phi2.value,
-                    ]
-                ).T
-                return self.footprint.contains_points(pts)
-        else:
-            return self.footprint.contains_points(data)
-
-    def export(self):
-        data = {}
-        data["stream_frame"] = self.stream_frame
-        data["vertices"] = self.vertices
-        data["footprint_type"] = self.footprint_type
-        return data
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 
 class Pawprint(dict):
-    """Dictionary class to store a "pawprint":
+    """Dictionary class to store a "pawprint".
+
     polygons in multiple observational spaces that define the initial selection
     used for stream track modeling,
     membership calculation / density modeling, and background modeling.
 
     New convention: everything is in phi1 phi2 (don't cross the streams)
-
     """
 
-    def __init__(self, data):
+    def __init__(self, data: dict[str, Any]) -> None:
         self.stream_name = data["stream_name"]
         self.pawprint_ID = data["pawprint_ID"]
         self.stream_frame = data["stream_frame"]
@@ -139,11 +82,10 @@ class Pawprint(dict):
         self.track = data["track"]
 
     @classmethod
-    def from_file(cls, fname):
-        import asdf
-
+    def from_file(cls: type[Self], fname: str) -> Self:
+        """Create a pawprint from an asdf file."""
         data = {}
-        with asdf.open("fname") as a:
+        with asdf.open(fname) as a:
             # first transfer the stuff that goes directly
             data["stream_name"] = a["stream_name"]
             data["pawprint_ID"] = a["pawprint_ID"]
@@ -175,34 +117,34 @@ class Pawprint(dict):
         return cls(data)
 
     @classmethod
-    def pawprint_from_galstreams(cls, stream_name, pawprint_ID, width):
-        def _get_stream_frame_from_file(summary_file):
+    def pawprint_from_galstreams(
+        cls: type[Self], stream_name: str, pawprint_ID: Any, width: float
+    ) -> Self:
+        """Create a pawprint from galstreams data."""
+
+        def _get_stream_frame_from_file(summary_file: str) -> GreatCircleICRSFrame:
             t = apt.QTable.read(summary_file)
 
             x = {}
             atts = [x.replace("mid.", "") for x in t.keys() if "mid" in x]
-            for (
-                att
-            ) in (
-                atts
-            ):  # we're effectively looping over skycoords defined for mid here (ra, dec, ...)
-                x[att] = t[f"mid.{att}"][
-                    0
-                ]  # <- make sure to set it up as a scalar. if not, frame conversions get into trouble
+            # we're effectively looping over skycoords defined for mid here (ra,
+            # dec, ...)
+            for att in atts:
+                # Make sure to set it up as a scalar. if not, frame conversions
+                # get into trouble
+                x[att] = t[f"mid.{att}"][0]
             mid_point = SkyCoord(**x)
 
             x = {}
             atts = [x.replace("pole.", "") for x in t.keys() if "pole" in x]
-            for (
-                att
-            ) in (
-                atts
-            ):  # we're effectively looping over skycoords defined for pole here (ra, dec, ...)
+            # we're effectively looping over skycoords defined for pole here
+            # (ra, dec, ...)
+            for att in atts:
                 x[att] = t[f"pole.{att}"][0]
-            # Make sure to set the pole's distance attribute to 1 (zero causes problems, when transforming to stream frame coords)
-            x["distance"] = (
-                1.0 * u.kpc
-            )  # it shouldn't matter, but if it's zero it does crazy things
+            # Make sure to set the pole's distance attribute to 1 (zero causes
+            # problems, when transforming to stream frame coords) it shouldn't
+            # matter, but if it's zero it does crazy things
+            x["distance"] = 1.0 * u.kpc
             mid_pole = SkyCoord(**x)
 
             return GreatCircleICRSFrame(pole=mid_pole, ra0=mid_point.icrs.ra)
@@ -225,10 +167,9 @@ class Pawprint(dict):
             summary_file=summary_file,
         )
         try:
-            data["width"] = (
-                2 * data["track"].track_width["width_phi2"]
-            )  # one standard deviation on each side (is this wide enough?)
-        except Exception:
+            # one standard deviation on each side (is this wide enough?)
+            data["width"] = 2 * data["track"].track_width["width_phi2"]
+        except KeyError:
             data["width"] = width
         data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
             width=data["width"], phi2_offset=0.0 * u.deg
@@ -246,7 +187,10 @@ class Pawprint(dict):
 
         return cls(data)
 
-    def add_cmd_footprint(self, new_footprint, color, mag, name):
+    def add_cmd_footprint(
+        self, new_footprint: Any, color: Any, mag: Any, name: str
+    ) -> None:
+        """Add a color-magnitude diagram footprint."""
         if self.cmd_filters is None:
             self.cmd_filters = dict((name, [color, mag]))
             self.cmdprint = dict((name, new_footprint))
@@ -254,15 +198,25 @@ class Pawprint(dict):
             self.cmd_filters[name] = [color, mag]
             self.cmdprint[name] = new_footprint
 
-    def add_pm_footprint(self, new_footprint, name):
+    def add_pm_footprint(self, new_footprint: Any, name: str) -> None:
+        """Add a proper motion footprint."""
         if self.pmprint is None:
             self.pmprint = dict((name, new_footprint))
         else:
             self.pmprint[name] = new_footprint
 
-    def save_pawprint(self):
-        # WARNING this doesn't save the track yet - need schema
-        # WARNING the stream frame doesn't save right either
+    def save_pawprint(self) -> None:
+        """Save the pawprint to an asdf file.
+
+        .. warning::
+
+            This doesn't save the track yet.
+
+        .. todo::
+
+            Make an ASDF schema for the track and the frame, and then the
+            pawprint.
+        """
         fname = self.stream_name + self.pawprint_ID + ".asdf"
         tree = {
             "stream_name": self.stream_name,
@@ -272,7 +226,6 @@ class Pawprint(dict):
             "width": self.width,
             "on_stream": {"sky": self.skyprint["stream"].export()},
             "off_stream": self.skyprint["background"].export(),
-            #    'track':self.track   #TODO
         }
         if self.cmdprint is not None:
             tree["on_stream"]["cmd"] = {

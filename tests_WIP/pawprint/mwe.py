@@ -1,3 +1,5 @@
+"""WIP tests."""
+
 from __future__ import annotations
 
 import astropy.units as u
@@ -38,9 +40,8 @@ ax.plot(stars.ra, stars.dec, "k.", ms=0.5)
 on = stars.makeMask(pawprint, what="sky.stream")  # is a function of starlist
 ax.plot(stars.ra[on], stars.dec[on], ".", ms=2.5, color="C0")
 
-# Create a new polygon footprint off-stream, with a given offset and width, and select field points inside it
-# <this will now be stored in the pawprint>
-# off_poly = mwsts[st].create_sky_polygon_footprint_from_track(width=1.*u.deg, phi2_offset=3.5*u.deg)
+# Create a new polygon footprint off-stream, with a given offset and width, and
+# select field points inside it.
 off = stars.makeMask(pawprint, what="sky.background")
 # Plot the off-stream polygon footprint and points selected inside it
 ax.plot(

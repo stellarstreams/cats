@@ -1,9 +1,11 @@
+"""GD-1 test script for CMD fitting."""
+
 from __future__ import annotations
 
 import astropy.table as at
-from CMD import Isochrone
 
-from cats.pawprint.pawprint import Footprint2D, Pawprint
+from cats.cmd import Isochrone
+from cats.pawprint import Footprint2D, Pawprint
 
 # Note: if already loaded, we can just write:
 fn = "/Users/Tavangar/CATS_workshop/cats/data/joined-GD-1.fits"

@@ -1,3 +1,5 @@
+"""GD-1 test script for CMD fitting."""
+
 from __future__ import annotations
 
 import astropy.table as at
@@ -7,6 +9,7 @@ from cats.pawprint.pawprint import Footprint2D, Pawprint
 
 
 def main() -> int:
+    """GD-1 test script for CMD fitting."""
     fn = "/Users/Tavangar/CATS_workshop/cats/data/joined-GD-1.fits"
     cat = at.Table.read(fn)
 
