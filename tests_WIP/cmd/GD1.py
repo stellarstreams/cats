@@ -1,3 +1,5 @@
+"""GD-1 test script for CMD fitting."""
+
 from __future__ import annotations
 
 import astropy.table as at

@@ -1,3 +1,5 @@
+"""Pal5 test script."""
+
 from __future__ import annotations
 
 import astropy.table as at
@@ -5,6 +7,7 @@ from CMD import Isochrone
 
 
 def main() -> int:
+    """Pal5 test script."""
     fn = "./joined-Pal5.fits"
     cat = at.Table.read(fn)
 

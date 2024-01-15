@@ -1,3 +1,5 @@
+"""Jhelum test script."""
+
 from __future__ import annotations
 
 import astropy.table as at
@@ -5,6 +7,7 @@ from CMD import Isochrone
 
 
 def main() -> int:
+    """Jhelum test script."""
     fn = "./joined-Jhelum.fits"
     cat = at.Table.read(fn)
 
