@@ -1,6 +1,7 @@
 """
 Assumptions and helpers for working with coordinates
 """
+
 from __future__ import annotations
 
 import astropy.coordinates as coord
