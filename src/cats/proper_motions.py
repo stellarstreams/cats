@@ -170,9 +170,7 @@ class ProperMotionSelection:
                 self.data, x_width=3.0, y_width=3.0, draw_histograms=True
             )
             print(
-                "Post-fitting (pm1_mean, pm2_mean, pm1_std, pm2_std): {} \n".format(
-                    peak_locations
-                )
+                f"Post-fitting (pm1_mean, pm2_mean, pm1_std, pm2_std): {peak_locations} \n"
             )
         #         except:
         #             print('Skipping peak pm fitting')
