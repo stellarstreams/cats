@@ -3,11 +3,15 @@ import os
 import asdf
 import astropy.table as apt
 import astropy.units as u
+import astropy.coordinates as ac
 import galstreams as gst
 import numpy as np
+import scipy
+from scipy.interpolate import InterpolatedUnivariateSpline as IUS
 from astropy.coordinates import SkyCoord
 from gala.coordinates import GreatCircleICRSFrame
 from matplotlib.path import Path as mpl_path
+import gala
 
 # class densityClass: #TODO: how to represent densities?
 
@@ -183,7 +187,7 @@ class Pawprint(dict):
         return cls(data)
 
     @classmethod
-    def pawprint_from_galstreams(cls, stream_name, pawprint_ID, width):
+    def pawprint_from_galstreams(cls, stream_name, pawprint_ID, width, phi1_lim):
         galstreams_dir = os.path.dirname(gst.__file__)
         galstreams_tracks = os.path.join(galstreams_dir, "tracks/")
 
@@ -235,8 +239,37 @@ class Pawprint(dict):
                 1.0 * u.kpc
             )  # it shouldn't matter, but if it's zero it does crazy things
             mid_pole = SkyCoord(**x)
+            
+            if gala.__version__ >= '1.7.0':
+                return GreatCircleICRSFrame.from_pole_ra0(pole=mid_pole, ra0=mid_point.icrs.ra, origin_disambiguate=mid_point.icrs)
+            else:
+                return GreatCircleICRSFrame(pole=mid_pole, ra0=mid_point.icrs.ra)
 
-            return GreatCircleICRSFrame(pole=mid_pole, ra0=mid_point.icrs.ra)
+
+        def _create_skyprint_from_track(data, phi2_offset=0.0*u.deg, phi1_lim=None):
+            if phi1_lim == None:
+                print('Defining length of the track according to galstreams')
+                stream_vertices = data["track"].create_sky_polygon_footprint_from_track(
+                                                width=data["width"], phi2_offset=phi2_offset)
+                return stream_vertices
+            else:
+                print('Modifying/extrapolating galstreams track')
+                tr = data["track"].track.transform_to(data["stream_frame"])
+                ext_spline = IUS(tr.phi1, tr.phi2, ext=0, k=1)
+    
+                phi1s_ = np.arange(phi1_lim[0], phi1_lim[1], 0.01)
+                phi1s = phi1s_*u.deg
+                phi2s = ext_spline(phi1s_) * u.deg
+                sort = np.argsort(phi1s)
+                tr_N = ac.SkyCoord(phi1 = phi1s[sort], phi2 = phi2s[sort] + width/2. + phi2_offset, frame=data["stream_frame"])
+                tr_S = ac.SkyCoord(phi1 = phi1s[sort], phi2 = phi2s[sort] - width/2. + phi2_offset, frame=data["stream_frame"])
+                
+                #Set poly
+                # Concatenate N track, S-flipped track and add first point at the end to close the polygon (needed for ADQL)
+                stream_vertices = ac.SkyCoord(phi1 = np.concatenate((tr_N.phi1,tr_S.phi1[::-1],tr_N.phi1[:1])),
+                                              phi2 = np.concatenate((tr_N.phi2,tr_S.phi2[::-1],tr_N.phi2[:1])),
+                                              unit=u.deg, frame=data["stream_frame"])
+                return stream_vertices
 
         data = {}
         data["stream_name"] = stream_name
@@ -258,14 +291,18 @@ class Pawprint(dict):
         #     )  # one standard deviation on each side (is this wide enough?)
         # except:
         data["width"] = width # if galstreams gets widths, uncomment above code
-        data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
-            width=data["width"], phi2_offset=0.0 * u.deg
-        )
-        data["background_vertices"] = data[
-            "track"
-        ].create_sky_polygon_footprint_from_track(
-            width=data["width"], phi2_offset=3.0 * u.deg
-        )
+        # data["stream_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
+        #     width=data["width"], phi2_offset=0.0 * u.deg
+        # )
+        data["stream_vertices"] = _create_skyprint_from_track(data, 
+                                                              phi2_offset=0.0*u.deg,
+                                                              phi1_lim=phi1_lim)
+        # data["background_vertices"] = data["track"].create_sky_polygon_footprint_from_track(
+        #                                             width=data["width"], 
+        #                                             phi2_offset=3.0 * u.deg)
+        data["background_vertices"] = _create_skyprint_from_track(data, 
+                                                                  phi2_offset=3.0*u.deg,
+                                                                  phi1_lim=phi1_lim)
         data["cmd_filters"] = None
         data["cmd_vertices"] = None
         data["pm_vertices"] = None
@@ -273,6 +310,8 @@ class Pawprint(dict):
         data["pm2_vertices"] = None
 
         return cls(data)
+    
+            
 
     def add_cmd_footprint(self, new_footprint, color, mag, name):
         if self.cmd_filters is None:
