@@ -35,11 +35,15 @@ def rough_pm_poly(pawprint, data, buffer=2):
     track = pawprint.track.track.transform_to(stream_fr)
     # track_refl = gc.reflex_correct(track)
 
+    phi1_lims = np.arange(np.min(data['phi1']), np.max(data['phi1']), 0.1) # every 0.1 degrees
+    ext_spline_pm1 = IUS(track.phi1, track.pm_phi1_cosphi2, ext=0, k=1)
+    ext_spline_pm2 = IUS(track.phi1, track.pm_phi2, ext=0, k=1)
+    full_track_pm1 = ext_spline_pm1(phi1_lims)
+    full_track_pm2 = ext_spline_pm2(phi1_lims)
+
     # use the galstream proper motion track
-    track_pm1_min = np.min(track.pm_phi1_cosphi2.value)
-    track_pm1_max = np.max(track.pm_phi1_cosphi2.value)
-    track_pm2_min = np.min(track.pm_phi2.value)
-    track_pm2_max = np.max(track.pm_phi2.value)
+    track_pm1_min, track_pm1_max = np.min(full_track_pm1), np.max(full_track_pm1)
+    track_pm2_min, track_pm2_max = np.min(full_track_pm2), np.max(full_track_pm2)
 
     # make rectangular box around this region with an extra 2 mas/yr on each side
     rough_pm_poly = np.array(
@@ -116,7 +120,7 @@ class ProperMotionSelection:
         ####################################
         ## Make a rough proper motion cut ##
         ####################################
-        self.rough_pm_poly, self.rough_pm_mask = self.rough_pm(buffer=2)
+        # self.rough_pm_poly, self.rough_pm_mask = self.rough_pm(buffer=2)
 
         ##################################
         ## Different proper motion cuts ##
@@ -175,7 +179,7 @@ class ProperMotionSelection:
             print("Fitting for peak pm location")
             # Uses default best_pm_phi_mean to generate improved ones
             peak_locations = self.find_peak_location(
-                self.data, x_width=3.0, y_width=3.0, draw_histograms=True
+                self.data, x_width=3.0, y_width=3.0, draw_histograms=False
             )
             print(
                 "Post-fitting (pm1_mean, pm2_mean, pm1_std, pm2_std): {} \n".format(
@@ -220,15 +224,15 @@ class ProperMotionSelection:
         self.mask = self.pm12_mask & self.spatial_mask_on & self.CMD_mask
 
         # Plot the cut that accounts for PM variations
-        self.plot_pms_scatter(
-            self.data,
-            mask=True,
-            n_dispersion_phi1=n_dispersion_phi1,
-            n_dispersion_phi2=n_dispersion_phi2,
-        )
-        self.plot_pm_hist(
-            self.data, pms=[self.best_pm_phi1_mean, self.best_pm_phi2_mean]
-        )
+#        self.plot_pms_scatter(
+#            self.data,
+#            mask=True,
+#            n_dispersion_phi1=n_dispersion_phi1,
+#            n_dispersion_phi2=n_dispersion_phi2,
+#        )
+#        self.plot_pm_hist(
+#            self.data, pms=[self.best_pm_phi1_mean, self.best_pm_phi2_mean]
+#        )
 
         #################################################
         ## PM cut in (phi1, pm1) and (phi1, pm2) space ##
@@ -284,7 +288,7 @@ class ProperMotionSelection:
         if self.stream == "GD-1":
             spline_dist = np.poly1d(
                 [2.41e-4, 2.421e-2, 15.001]
-            )  # from Adrian and Kiyan's separate work
+            )  # from de Boer et al (2020)
         else:
             spline_dist = IUS(self.galstream_phi1, self.galstream_dist)
 
@@ -342,39 +346,39 @@ class ProperMotionSelection:
         self.mask = self.spatial_mask_on & self.CMD_mask
         self.off_mask = self.spatial_mask_off & self.CMD_mask
 
-    def rough_pm(self, buffer=2):
-        """
-        Will return a polygon with a rough cut in proper motion space.
-        This aims to be ~100% complete with no thoughts about purity.
-        The goal is to use this cut in conjunction with the cmd cut in order
-        to see the stream as a clear overdensity in (phi_1, phi_2), which will
-        allow membership probability modeling
-        """
-        # use the galstream proper motion track
-        track_pm1_min = np.min(self.galstream_pm_phi1_cosphi2)
-        track_pm1_max = np.max(self.galstream_pm_phi1_cosphi2)
-        track_pm2_min = np.min(self.galstream_pm_phi2)
-        track_pm2_max = np.max(self.galstream_pm_phi2)
+    # def rough_pm(self, buffer=2):
+    #     """
+    #     Will return a polygon with a rough cut in proper motion space.
+    #     This aims to be ~100% complete with no thoughts about purity.
+    #     The goal is to use this cut in conjunction with the cmd cut in order
+    #     to see the stream as a clear overdensity in (phi_1, phi_2), which will
+    #     allow membership probability modeling
+    #     """
+    #     # use the galstream proper motion track
+    #     track_pm1_min = np.min(self.galstream_pm_phi1_cosphi2)
+    #     track_pm1_max = np.max(self.galstream_pm_phi1_cosphi2)
+    #     track_pm2_min = np.min(self.galstream_pm_phi2)
+    #     track_pm2_max = np.max(self.galstream_pm_phi2)
 
-        # make rectangular box around this region with an extra 2 mas/yr on each side
-        self.rough_pm_poly = np.array(
-            [
-                [track_pm1_min - buffer, track_pm2_min - buffer],
-                [track_pm1_min - buffer, track_pm2_max + buffer],
-                [track_pm1_max + buffer, track_pm2_max + buffer],
-                [track_pm1_max + buffer, track_pm2_min - buffer],
-            ]
-        )
+    #     # make rectangular box around this region with an extra 2 mas/yr on each side
+    #     self.rough_pm_poly = np.array(
+    #         [
+    #             [track_pm1_min - buffer, track_pm2_min - buffer],
+    #             [track_pm1_min - buffer, track_pm2_max + buffer],
+    #             [track_pm1_max + buffer, track_pm2_max + buffer],
+    #             [track_pm1_max + buffer, track_pm2_min - buffer],
+    #         ]
+    #     )
 
-        pm_points = np.vstack(
-            (self.data["pm_phi1_cosphi2_unrefl"], self.data["pm_phi2_unrefl"])
-        ).T
-        self.pawprint.pmprint = Footprint2D(
-            self.rough_pm_poly, footprint_type="cartesian"
-        )
-        self.rough_pm_mask = self.pawprint.pmprint.inside_footprint(pm_points)
+    #     pm_points = np.vstack(
+    #         (self.data["pm_phi1_cosphi2_unrefl"], self.data["pm_phi2_unrefl"])
+    #     ).T
+    #     self.pawprint.pmprint = Footprint2D(
+    #         self.rough_pm_poly, footprint_type="cartesian"
+    #     )
+    #     self.rough_pm_mask = self.pawprint.pmprint.inside_footprint(pm_points)
 
-        return self.rough_pm_poly, self.rough_pm_mask
+    #     return self.rough_pm_poly, self.rough_pm_mask
 
     @staticmethod
     def two_dimensional_gaussian(x, y, x0, y0, sigma_x, sigma_y):
@@ -777,7 +781,7 @@ class ProperMotionSelection:
 
         # ========================= added Nov 3 (need checking) ========================
 
-    def find_peak_location(self, data, x_width=3.0, y_width=3.0, draw_histograms=True):
+    def find_peak_location(self, data, x_width=3.0, y_width=3.0, draw_histograms=False):
         """
         find peak location in the proper motion space
         :param: data: list of the stellar parameters to get the peak pm.
@@ -794,7 +798,7 @@ class ProperMotionSelection:
         from astropy.modeling import fitting, models
         from matplotlib.colors import LogNorm
 
-        x_center, y_center = self.best_pm_phi1_mean, self.best_pm_phi2_mean
+        x_center, y_center = np.round(self.best_pm_phi1_mean, 3), np.round(self.best_pm_phi2_mean, 3)
         print("Pre-fitting mean PM values: {}, {}".format(x_center, y_center))
         xmin, xmax, ymin, ymax = (
             x_center - x_width,
@@ -850,7 +854,7 @@ class ProperMotionSelection:
         x, y = np.meshgrid(x_edges[:-1], y_edges[:-1])
 
         # g = fit_g(g_init, x, y, hist_zoom)
-        g = fit_g(g_init, x, y, hist)
+        g = fit_g(g_init, x, y, hist) # not willing to rule out that this should be hist.T (need to make sure)
 
         # the mean position of the peak
         pm_x_cen = g.x_mean + 0.5 * (x_edges[1] - x_edges[0])  # half width of the bin

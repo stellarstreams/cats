@@ -382,7 +382,7 @@ class Isochrone:
 
         coloff = self.x_shift
         magoff = self.y_shift
-        ind = self.masses < mass_thresh
+        ind = self.masses < mass_thresh #this isn't doing anything at the moment (delete)
 
         tol = self.get_tolerance(scale_err)[ind]
 
