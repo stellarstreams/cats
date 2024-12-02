@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-__all__ = ["PS1Phot", "GaiaDR3Phot", "DESY6Phot"]
+__all__ = ["DESY6Phot", "GaiaDR3Phot", "PS1Phot"]
 
 import abc
 from typing import ClassVar
