@@ -564,8 +564,8 @@ class ProperMotionSelection:
 
         ax[0].set_xlim(-20, 20)
         ax[0].set_ylim(-20, 20)
-        ax[0].set_xlabel("$\mu_{\phi_1}$ [mas yr$^{-1}$]")
-        ax[0].set_ylabel("$\mu_{\phi_2}$ [mas yr$^{-1}$]")
+        ax[0].set_xlabel(r"$\mu_{\phi_1}$ [mas yr$^{-1}$]")
+        ax[0].set_ylabel(r"$\mu_{\phi_2}$ [mas yr$^{-1}$]")
         ax[0].set_title("Stream", fontsize="medium")
 
         # resize and fix column name
@@ -584,8 +584,8 @@ class ProperMotionSelection:
 
         ax[1].set_xlim(-20, 20)
         ax[1].set_ylim(-20, 20)
-        ax[1].set_xlabel("$\mu_{\phi_1}$ [mas yr$^{-1}$]")
-        ax[1].set_ylabel("$\mu_{\phi_2}$ [mas yr$^{-1}$]")
+        ax[1].set_xlabel(r"$\mu_{\phi_1}$ [mas yr$^{-1}$]")
+        ax[1].set_ylabel(r"$\mu_{\phi_2}$ [mas yr$^{-1}$]")
         ax[1].set_title("Off stream", fontsize="medium")
 
         fig.tight_layout()
